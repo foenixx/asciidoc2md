@@ -1,13 +1,14 @@
 package parser
 
 import (
-	"asciidoc/ast"
-	"asciidoc/lexer"
-	"asciidoc/token"
+	"asciidoc2md/ast"
+	"asciidoc2md/lexer"
+	"asciidoc2md/token"
 	"cdr.dev/slog"
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 const ILLEGAL = "ILLEGAL"
@@ -19,7 +20,8 @@ type Parser struct{
 	tok     *token.Token //current token
 	prevTok *token.Token // previous token
 	//nextTok        *token.Token // next token
-	nestedListLevel int
+	//nestedListLevel int
+	curBlock ast.Block //block which is being parsed
 	log slog.Logger
 }
 
@@ -27,6 +29,7 @@ func New(input string, logger slog.Logger) *Parser {
 	var p Parser
 	p.log = logger
 	p.l = lexer.New(input, func(tok *token.Token) {
+		//p.log.Debug(context.Background(), "got token", slog.F("token", tok))
 		p.tokens = append(p.tokens, tok)
 	})
 	return &p
@@ -90,8 +93,8 @@ forLoop:
 		switch {
 		case p.tok.Type == token.EOF:
 			break forLoop
-		case p.tok.Type == token.LIST:
-			l, err := p.parseList()
+		case p.isListMarker():
+			l, err := p.parseList(nil)
 			if err != nil {
 				return nil, err
 			}
@@ -107,7 +110,6 @@ forLoop:
 				doc.Add(b)
 			}
 		}
-
 	}
 	return &doc, nil
 }
@@ -125,6 +127,16 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 	}
 
 	switch {
+	case p.isListMarker():
+		l, err := p.parseList(nil)
+		if err != nil {
+			return nil, err
+		}
+		return l, nil
+	case p.tok.Type == token.BLOCK_TITLE:
+		t := ast.BlockTitle{Title: p.tok.Literal}
+		if !p.advance() { return nil, fmt.Errorf("parse block title: cannot advance tokens") }
+		return &t, nil
 	case p.tok.Type == token.HEADER:
 		h, err := p.parseHeader()
 		if err != nil {
@@ -153,32 +165,82 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 			return nil, err
 		}
 		return adn, nil
+	case p.tok.Type == token.EX_BLOCK:
+		//example block
+		//if _, ok := p.curBlock.(*ast.ExampleBlock); ok {
+		//	//we're inside parseExampleBlock, just return
+		//}
+		b, err := p.parseExampleBlock()
+		if err != nil {
+			return nil, err
+		}
+		b.Options = options
+		return (ast.Block)(b), nil
 	}
 	return nil, nil
+}
+
+func (p *Parser) isDoubleNewline() bool {
+	return p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE
+}
+
+func (p *Parser) isListMarker() bool {
+	return p.tok.Type == token.NL_MARK || p.tok.Type == token.L_MARK
 }
 
 func (p *Parser) isParagraphEnd() bool {
 	return (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) ||
 		p.tok.Type == token.EOF ||
-		p.tok.Type == token.LIST ||
-		p.tok.Type == token.CONCAT_PAR
+		p.isListMarker() ||
+		p.tok.Type == token.CONCAT_PAR ||
+		p.tok.Type == token.EX_BLOCK ||
+		p.tok.Type == token.QUOTE_BLOCK
+}
+
+func (p *Parser) parseExampleBlock() (*ast.ExampleBlock, error) {
+	//skip delimiter + newline tokens
+	var ex ast.ExampleBlock
+	p.curBlock = &ex
+	defer func() { p.curBlock = nil }()
+
+	if !p.advanceMany(2) {
+		return nil, fmt.Errorf("parse example block: cannot advance tokens")
+	}
+	for p.tok.Type != token.EX_BLOCK && p.tok.Type != token.EOF {
+
+		if p.tok.Type == token.NEWLINE {
+			if !p.advance() {
+				return nil, fmt.Errorf("parse block: cannot advance tokens")
+			}
+		} else {
+			b, err := p.parseBlock()
+			if err != nil {
+				return nil, err
+			}
+			ex.Add(b)
+		}
+	}
+	if p.tok.Type == token.EX_BLOCK {
+		//skip closing token
+		if !p.advance() {
+			return nil, fmt.Errorf("parse example block: cannot advance tokens")
+		}
+	}
+	return &ex, nil
 }
 
 func (p *Parser) parseAdmonition() (*ast.Admonition, error) {
 	var admonition ast.Admonition
 	admonition.Kind = p.tok.Literal
-	admonition.Content = &ast.ContainerBlock{}
-
-	for !p.isParagraphEnd() {
-		if !p.advance() {
-			break
-		}
-		b, err := p.parseParagraph()
-		if err != nil {
+	if !p.advance() {
+		return nil, fmt.Errorf("parse admonition error: cannot advance tokens")
+	}
+	b, err := p.parseParagraph()
+	if err != nil {
 			return nil, err
 		}
-		admonition.Content.Add(b)
-	}
+	admonition.Content = b
+
 	return &admonition, nil
 }
 
@@ -202,8 +264,8 @@ func (p *Parser) parseHeader() (*ast.Header, error) {
 	return nil, fmt.Errorf("invalid header text token: %v", p.tok)
 }
 
-func (p *Parser) parseParagraph() (*ast.ContainerBlock, error) {
-	var par ast.ContainerBlock
+func (p *Parser) parseParagraph() (*ast.Paragraph, error) {
+	var par ast.Paragraph
 	for {
 		switch p.tok.Type {
 		case token.STR:
@@ -264,12 +326,12 @@ func (p *Parser) parseListItem() (*ast.ContainerBlock, error) {
 l1:
 	for {
 		switch {
-		case (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) ||
-			p.tok.Type == token.LIST ||
-			p.tok.Type == token.EOF:
+		case p.isDoubleNewline() ||	p.isListMarker() ||	p.tok.Type == token.EOF:
 			break l1
+		case p.tok.Type == token.NEWLINE:
+			if !p.advance() { return nil, fmt.Errorf("parse list item: cannot advance tokens") }
 		case p.tok.Type == token.CONCAT_PAR:
-			//just skip newline after CONCAT_PAR
+			//skip newline after CONCAT_PAR
 			if !p.advanceMany(2) {
 				return nil, fmt.Errorf("parseListItem: cannot advance by 2 elements")
 			}
@@ -289,48 +351,13 @@ l1:
 
 /* parseList is called for the 1st list item
 
+ex0:
 * item1
 ** item1.1
 *** item 1.1.1
+. nested list item 1.1.1.1
 ** item1.2
 * item2
-
-↓
-* item1 | parseList(1) called, listLevel = 0, current char is a list marker, advance, globalLevel++ (1)
-  ↓
-* item1 | still in the parseList(1), current char isn't a list marker, parse list item.
-↓
-** item1.1 | we're still inside parseList(1). current char is a list marker, advance.
- ↓
-** item1.1 | still inside parseList(1). Nested list detected. Let's parse this list. Calling parseList(2).
- ↓
-** item1.1 | we're inside parseList(2), current char is a list marker, advance.
-   ↓
-** item1.1 | still in the parseList(2), current char isn't a list marker, parse list item.
-↓
-*** item1.1.1 | still in the parseList(2), list marker, advance
- ↓
-*** item1.1.1 | still in the parseList(2), list marker, advance
-  ↓
-*** item1.1.1 | still in the parseList(2), list marker, nested list detected, calling parseList(3)
-  ↓
-*** item1.1.1 | we're inside parseList(3), list marker, advance
-    ↓
-*** item1.1.1 | we're inside parseList(3), not a list marker, parse list item
-↓
-** item1.2    | parseList(3), list marker, advance
- ↓
-** item1.2    | parseList(3), list marker, advance
-   ↓
-** item1.2    | parseList(3), not a list marker, parent list detected, returning into parseList(2)
-   ↓
-** item1.2    | parseList(2). not a list marker, parse list item
-↓
-* item2       | parseList(2), list marker, advance
-  ↓
-* item2       | parseList(2), not a list marker, parent list detected, return into parseList(1)
-  ↓
-* item2       | parseList(1), not a list marker, parse list item
 
 ex1:
 * list item 1
@@ -352,73 +379,59 @@ ex2:
 ** nested list item 1.1.1
 . list item 2
 
+Parsing rules:
+1. If list marker == current list marker then: current list item
+2. If list marker == (any list marker in the chain of parents): parent list
+2. Else: nested list
+
  */
-func (p *Parser) parseList() (*ast.List, error) {
+func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 	var err error
 	var blok ast.Block
 	var item *ast.ContainerBlock
 	var list ast.List
-	//store list marker '.' or '*'
-	marker := p.tok.Literal
-	if marker == "." {
+	//store list marker
+	list.Marker = p.tok.Literal
+	if strings.HasPrefix(list.Marker, ".") {
 		//numbered list
 		list.Numbered = true
 	}
-	list.Level = p.nestedListLevel
-	//skip list marker
-	if !p.advance() {
-		return nil, fmt.Errorf("cannot advance tokens in the parseList")
+	list.Parent = parent
+	if parent != nil {
+		list.Level = parent.Level + 1
 	}
 
-forLoop:
 	for {
 		switch {
 		case (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) || p.tok.Type == token.EOF:
 			//end of the list
-			p.nestedListLevel = 0
+			//p.nestedListLevel = 0
 			return &list, nil
-		case p.tok.Type == token.LIST:
-			if p.prevTok.Type == token.NEWLINE && p.tok.Literal == marker {
-				// start of the new list markers train "** item" or ".. item"
-				p.nestedListLevel = 0
-			} else {
-				/* should be a list marker */
-				p.nestedListLevel += 1
+		case p.isListMarker() && p.tok.Literal == list.Marker:
+			//current list item
+			if !p.advance() {return nil, fmt.Errorf("parseList: cannot advance")}
+			item, err = p.parseListItem()
+			if err != nil {
+				return nil, err
 			}
-			if p.nestedListLevel > list.Level {
-				//nested list detected
-				p.log.Debug(context.Background(), "parseList: nested list detected",
-					slog.F("token", p.tok),
-					slog.F("next", p.peekToken(1)))
-				blok, err = p.parseList()
-				p.log.Debug(context.Background(), "nested list parsed", slog.F("list", blok))
-				if err != nil {
+			list.AddItem(item)
+		case p.isListMarker() && list.CheckMarker(p.tok.Literal):
+			//parent list item
+			return &list, nil
+		case p.isListMarker():
+			//nested list
+			blok, err = p.parseList(&list)
+
+			if err != nil {
 					return nil, err
-				}
-				list.LastItem().Add(blok)
-			} else {
-				if !p.advance() {
-					break forLoop
-				}
 			}
+			//p.log.Debug(context.Background(), "nested list parsed", slog.F("list", blok))
+			list.LastItem().Add(blok)
 		default:
-			switch {
-			case list.Level == p.nestedListLevel:
-				//current list item
-				item, err = p.parseListItem()
-				if err != nil {
-					return nil, err
-				}
-				list.AddItem(item)
-			case list.Level > p.nestedListLevel:
-				//parent list item
-				return &list, nil
-			default:
-				//error
-				return nil, fmt.Errorf("invalid nested list item")
-			}
+			//error
+			return nil, fmt.Errorf("invalid nested list item")
 		}
 	}
 
-	return &list, nil
+	//return &list, nil
 }

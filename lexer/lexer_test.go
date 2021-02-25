@@ -1,7 +1,7 @@
 package lexer
 
 import (
-	"asciidoc/token"
+	"asciidoc2md/token"
 	"log"
 	"testing"
 	"github.com/stretchr/testify/assert"
@@ -82,17 +82,16 @@ var cases = []lexerTestCase {
 			{token.NEWLINE, "\n"},
 			{token.STR, "*bold*"},
 			{token.NEWLINE, "\n"},
-			{token.LIST, "*"},
+			{token.L_MARK, "*"},
 			{token.STR, "list 1"},
 			{token.NEWLINE, "\n"},
-			{token.LIST, "*"},
+			{token.L_MARK, "*"},
 			{token.STR, "list 2"},
 			{token.NEWLINE, "\n"},
-			{token.LIST, "*"},
-			{token.LIST, "*"},
+			{token.L_MARK, "**"},
 			{token.STR, "nested list"},
 			{token.NEWLINE, "\n"},
-			{token.LIST, "*"},
+			{token.L_MARK, "*"},
 			{token.STR, "list 3"},
 			{token.NEWLINE, "\n"},
 			{token.STR, "строка1 ==="},
@@ -129,6 +128,24 @@ image::image15_4.png[]`,
 
 	},
 	{
+		name: "mixed lists",
+		input:
+`. list1
+.. list2
+.not a list
+*not a list
+*** list3
+* list4`,
+		tests: []lt{
+			{token.NL_MARK, "."}, {token.STR, "list1"}, {token.NEWLINE, "\n"},
+			{token.NL_MARK, ".."}, {token.STR, "list2"}, {token.NEWLINE, "\n"},
+			{token.BLOCK_TITLE, `not a list`}, {token.NEWLINE, "\n"},
+			{token.STR, "*not a list"}, {token.NEWLINE, "\n"},
+			{token.L_MARK, "***"}, {token.STR, "list3"}, {token.NEWLINE, "\n"},
+			{token.L_MARK, "*"}, {token.STR, "list4"},	{token.EOF, ""},
+		},
+	},
+	{
 		name: "syntax block",
 		input:
 `----
@@ -145,7 +162,7 @@ image::image15_4.png[]`,
 `.title 1
 some text`,
 		tests: []lt{
-			{token.BLOCK_TITILE, `title 1`},
+			{token.BLOCK_TITLE, `title 1`},
 			{token.NEWLINE, "\n"},
 			{token.STR, `some text`},
 			{token.EOF, ""},
@@ -154,9 +171,14 @@ some text`,
 
 	{
 		name: "debug",
-		input: `
-[[bookmark1]]
-== Header
+		input: `.Пример
+[caption=""]
+====
+Если в правиле доступа...
+----
+sdfdsfsdf
+----
+====
 `,
 		tests: []lt{},
 	},
@@ -188,7 +210,7 @@ func TestNextToken(t *testing.T) {
 	}
 }
 
-func _TestDebug(t *testing.T) {
+func TestDebug(t *testing.T) {
 
 	for _, tc := range cases[len(cases)-1:] {
 		lex := []*token.Token{}

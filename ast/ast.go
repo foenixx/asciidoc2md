@@ -1,7 +1,7 @@
 package ast
 
 import (
-	"asciidoc/utils"
+	"asciidoc2md/utils"
 	"fmt"
 	"strings"
 )
@@ -31,6 +31,24 @@ func (b *ContainerBlock) String(indent string) string {
 	return str.String()
 }
 
+type Paragraph struct {
+	ContainerBlock
+}
+
+func (b *Paragraph) String(indent string) string {
+	s := b.ContainerBlock.String(indent)
+	return strings.Replace(s, "container block", "paragraph", 1)
+}
+
+type ExampleBlock struct {
+	ContainerBlock
+	Options string
+}
+
+func (ex *ExampleBlock) String(indent string) string {
+	s := ex.ContainerBlock.String(indent)
+	return strings.Replace(s, "container", "example", 1)
+}
 
 type Header struct {
 	Level int
@@ -41,20 +59,50 @@ func (h *Header) String(indent string) string {
 	return fmt.Sprintf("\n%sheader: %v, %v", indent, h.Level, h.Text)
 }
 
+type BlockTitle struct {
+	Title string
+}
+
+func (t *BlockTitle) String(indent string) string {
+	return fmt.Sprintf("\n%sblock title: %v", indent, t.Title)
+}
+
 type List struct {
 	Items []*ContainerBlock
+	Parent *List
+	Marker string
 	Level int
 	Numbered bool
+}
+
+func (l *List) CheckMarker(m string) bool {
+	if l == nil {
+		//checking for nil receiver cause it simplifies handling for nil if smb does "somelist.Parent.CheckMarker(...)"
+		return false
+	}
+
+	if m == l.Marker {
+		return true
+	}
+
+	if l.Parent == nil {
+		return false
+	}
+	return l.Parent.CheckMarker(m)
 }
 
 func (l *List) String(indent string) string {
 	str := strings.Builder{}
 	//ind2 := strings.Repeat("  ", l.Level)
-	str.WriteString(fmt.Sprintf("\n%slist begin: %v, %v", indent, l.Level, l.Numbered))
+	str.WriteString(fmt.Sprintf("\n%slist begin: (%v/%v/%v)", indent, l.Level, l.Numbered, l.Marker))
 
-	for _, item := range l.Items {
+	for i, item := range l.Items {
 		if item != nil {
-			str.WriteString(fmt.Sprintf("\n%sitem:", indent))
+			if l.Numbered {
+				str.WriteString(fmt.Sprintf("\n%sitem %v:", indent, i + 1))
+			} else {
+				str.WriteString(fmt.Sprintf("\n%sitem:", indent))
+			}
 			str.WriteString(item.String(indent + "  "))
 			//str.WriteString("\n")
 		} else {
@@ -117,7 +165,7 @@ func (i *HorLine) String(indent string) string {
 
 type Admonition struct {
 	Kind string
-	Content *ContainerBlock
+	Content *Paragraph
 }
 
 func (a *Admonition) String(indent string) string {
@@ -129,5 +177,6 @@ func (a *Admonition) String(indent string) string {
 	}
 	return fmt.Sprintf("\n%sadmonition: %s%s", indent, a.Kind, cStr)
 }
+
 
 var _ Block = (*Header)(nil)

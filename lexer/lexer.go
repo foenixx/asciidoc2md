@@ -1,8 +1,8 @@
 package lexer
 
 import (
-	"asciidoc/token"
-	"asciidoc/utils"
+	"asciidoc2md/token"
+	"asciidoc2md/utils"
 	"strings"
 	"unicode/utf8"
 )
@@ -77,7 +77,7 @@ func (l *Lexer) NextToken() bool {
 	case l.ch == '.' && l.prevToken.Type == token.NEWLINE && !utils.RuneIs(l.peekRune(), []rune{'.','*',' ','\t'}):
 		//block title ".title"
 		l.readRune() // move to a next char
-		l.setNewToken(token.BLOCK_TITILE, l.line, l.readLine())
+		l.setNewToken(token.BLOCK_TITLE, l.line, l.readLine())
 	case l.ch == '+' && l.prevToken.Type == token.NEWLINE && isNewLine(l.peekRune()):
 		// paragraph concatenation
 		ch := l.ch
@@ -91,17 +91,22 @@ func (l *Lexer) NextToken() bool {
 		//leading spaces: indentation
 		l.setNewToken(token.INDENT, l.line, l.readWhitespace())
 	case l.ch == '=' && l.prevToken.Type == token.NEWLINE:
-		l.setNewToken(token.HEADER, l.line, l.readHeader())
-	case isListMarker(l.ch) &&
-		 (l.prevToken.Type == token.NEWLINE || l.prevToken.Type == token.LIST) &&
-		 (isWhitespace(l.peekRune()) || isListMarker(l.peekRune())):
+		t := l.readHeaderOrExample()
+		l.setToken(t)
+
+	case isListMarker(l.ch) && utils.RuneIs(l.peekRune(), []rune{'.','*',' ','\t'}):
 		// "* list" is a list
 		// "** list" is a list
 		// "*text" is not a list
+		// ".text" is not a list - this case is captured above in the block title case
 		ch := l.ch
-		l.readRune() // move to a next char
+		m := l.readListMarker()
 		l.readWhitespace() //skip whitespace after
-		l.setNewToken(token.LIST, l.line, string(ch))
+		if ch == '*' {
+			l.setNewToken(token.L_MARK, l.line, m)
+		} else {
+			l.setNewToken(token.NL_MARK, l.line, m)
+		}
 	case l.ch == '[' && l.prevToken.Type == token.NEWLINE:
 		l.readRune()
 		if l.ch == '[' {
@@ -159,10 +164,10 @@ func (l *Lexer) readSyntaxBlock(delim *token.Token) string {
 func (l *Lexer) readBlockOptions() *token.Token {
 	pos := l.position
 	opts := l.readLine()
-	//should be enclosed in brackets
+	//should be enclosed in brackets, opening "[" is skipped by the calling code
 	if opts[len(opts) - 1] == ']' {
 		// return options without brackets
-		return &token.Token{Type: token.BLOCK_OPTS, Line: l.line, Literal: opts[1: len(opts) - 1]}
+		return &token.Token{Type: token.BLOCK_OPTS, Line: l.line, Literal: opts[: len(opts) - 1]}
 	}
 	return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: l.input[pos:l.position]}
 }
@@ -179,14 +184,24 @@ func (l *Lexer) readBookmark() *token.Token {
 	return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: l.input[pos:l.position]}
 }
 
-func (l *Lexer) readHeader() string {
+func (l *Lexer) readHeaderOrExample() *token.Token {
 	from := l.position
 	for l.ch == '=' {
 		l.readRune()
 	}
-	to := l.position
+	literal := l.input[from:l.position]
 	l.readWhitespace() //skip whitespace before header text
-	return l.input[from:to]
+	if isNewLine(l.ch) {
+		//example block, not a header:
+		//  ====
+		//  text
+		//  ====
+		if literal == "====" {
+			return &token.Token{Type: token.EX_BLOCK, Line: l.line, Literal: literal}
+		}
+		return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: literal}
+	}
+	return &token.Token{Type: token.HEADER, Line: l.line, Literal: literal}
 }
 
 func (l *Lexer) readNewLine() string {
@@ -225,6 +240,14 @@ func (l *Lexer) readLine() string {
 	return l.input[pos:l.position]
 }
 
+func (l *Lexer) readListMarker() string {
+	pos := l.position
+	for isListMarker(l.ch) {
+		l.readRune()
+	}
+	return l.input[pos:l.position]
+}
+
 func (l *Lexer) readString() []*token.Token {
 	//we are either at where the line begins or at the start of the word
 	tokens := make([]*token.Token, 0)
@@ -257,6 +280,8 @@ func (l *Lexer) readString() []*token.Token {
 
 func (l *Lexer) lookupKeyword(w string) *token.Token {
 	switch {
+	case strings.HasPrefix(w, "____"): //quotation block
+		return &token.Token{Type: token.QUOTE_BLOCK, Line: l.line, Literal: "____"}
 	case strings.HasPrefix(w, "----"): //block delimiter
 		// actual literal could have trailing spaces, let's don't bother trimming them
 		return &token.Token{Type: token.BLOCK_DELIM, Line: l.line, Literal: "----"}
