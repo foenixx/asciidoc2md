@@ -1,8 +1,8 @@
 package main
 
 import (
-	"asciidoc/ast"
-	"asciidoc/parser"
+	"asciidoc2md/ast"
+	"asciidoc2md/parser"
 	"bufio"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/sloghuman"
@@ -50,7 +50,7 @@ func main() {
 	}
 	defer fo.Close()
 	w := bufio.NewWriter(fo)
-	conv := Converter{ImageFolder: "data/images/"}
+	conv := Converter{ImageFolder: "data/images/", log: log}
 	conv.RenderMarkdown(doc, w)
 	err = w.Flush()
 	if err != nil {

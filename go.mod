@@ -1,4 +1,4 @@
-module asciidoc
+module asciidoc2md
 
 go 1.13
 
