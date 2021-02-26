@@ -15,6 +15,16 @@ type Lexer struct {
 	ch			 rune
 	receiver	 func(tok *token.Token)
 	line 		 uint //current line
+	tableFlag 		bool //we've started parsing table, this flag is set after "|===" token occurred
+}
+
+//lexer position
+type Position struct {
+	position     int
+	readPosition int
+	ch			 rune
+	line 		 uint
+	tableFlag 	bool
 }
 
 func New(input string, receiver func(token2 *token.Token)) *Lexer {
@@ -30,6 +40,15 @@ func (l *Lexer) LastToken() *token.Token {
 	return l.prevToken
 }
 
+func (l *Lexer) Position() *Position {
+	return &Position{
+		position:     l.position,
+		readPosition: l.readPosition,
+		ch:           l.ch,
+		line:         l.line,
+		tableFlag:    l.tableFlag,
+	}
+}
 //used for debugging
 func (l *Lexer) forceFinish() {
 	l.ch = 0
@@ -53,6 +72,14 @@ func (l *Lexer) peekRune() rune {
 		ch, _ := utf8.DecodeRuneInString(l.input[l.readPosition:])
 		return ch
 	}
+}
+
+func (l *Lexer) Rewind(pos *Position) {
+	l.position = pos.position
+	l.readPosition = pos.readPosition
+	l.ch = pos.ch
+	l.line = pos.line
+	l.tableFlag = pos.tableFlag
 }
 
 func (l *Lexer) setNewToken(typ token.TokenType, line uint, literal string) *token.Token {
@@ -126,9 +153,13 @@ func (l *Lexer) NextToken() bool {
 		tokens := l.readString() //read til EOL
 
 		switch {
-		case len(tokens) == 1 && tokens[0].Type == token.BLOCK_DELIM && l.prevToken.Type == token.NEWLINE:
+		case tokens[0].Type == token.BLOCK_DELIM:
 			// "----" syntax block
 			l.setNewToken(token.SYNTAX_BLOCK, l.line, l.readSyntaxBlock(tokens[0]))
+		case tokens[0].Type == token.TABLE:
+			//invert flag
+			l.tableFlag = !l.tableFlag
+			l.setToken(tokens[0])
 		default:
 			for _, tok := range tokens {
 				l.setToken(tok)
@@ -226,8 +257,14 @@ func (l *Lexer) readWhitespace() string {
 
 func (l *Lexer) readWord() string {
 	pos := l.position
-	for !isWordDelimiter(l.ch) {
+	//read until word delimiter of column separator (in table mode)
+	for !isWordDelimiter(l.ch) && !(l.tableFlag && isColumn(l.ch)) {
 		l.readRune()
+	}
+	if l.position == pos && (l.tableFlag && isColumn(l.ch)) {
+		//word starts from "|"
+		l.readRune() //skip to the next rune
+		return "|"
 	}
 	return l.input[pos:l.position]
 }
@@ -253,11 +290,29 @@ func (l *Lexer) readString() []*token.Token {
 	tokens := make([]*token.Token, 0)
 	pos := l.position
 	end := l.position // end of the last processed word
+	var w string
+	var tok *token.Token
+
+	//process full-line keywords first
+	if l.prevToken.Type == token.NEWLINE {
+		lexerState := l.Position()
+		w = l.readLine()
+		tok = l.lookupLineKeyword(w)
+		if tok != nil {
+			l.readLine() //skip the line
+			tokens = append(tokens, tok)
+			return tokens
+		}
+		//didn't found a keyword, rewind to previous position
+		l.Rewind(lexerState)
+	}
+	// not let's process inline keywords
 	// read word by word til EOL or EOF
 	for ! (isNewLine(l.ch) || l.ch == 0) {
 		// read a word without embracing whitespaces
 		w := l.readWord()
-		tok := l.lookupKeyword(w)
+		tok = l.lookupInlineKeyword(w)
+
 		if tok != nil {
 			// we've found a keyword, lets check if there were some text before it
 			if end > pos {
@@ -278,8 +333,25 @@ func (l *Lexer) readString() []*token.Token {
 	return tokens
 }
 
-func (l *Lexer) lookupKeyword(w string) *token.Token {
+func (l *Lexer) lookupInlineKeyword(w string) *token.Token {
 	switch {
+	case strings.HasPrefix(w,"image:"): //inline image
+		return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w}
+	case l.tableFlag && w == "|": //column
+		return &token.Token{Type: token.COLUMN, Line: l.line, Literal: w}
+	}
+	return nil
+}
+
+/*
+lookupLineKeyword is used only for starting from newline keywords
+*/
+func (l *Lexer) lookupLineKeyword(w string) *token.Token {
+	switch {
+	case strings.HasPrefix(w, "|==="):  //table
+		return &token.Token{Type: token.TABLE, Line: l.line, Literal: w}
+	//case l.tableFlag && w == "|": //column
+	//	return &token.Token{Type: token.COLUMN, Line: l.line, Literal: w}
 	case strings.HasPrefix(w, "____"): //quotation block
 		return &token.Token{Type: token.QUOTE_BLOCK, Line: l.line, Literal: "____"}
 	case strings.HasPrefix(w, "----"): //block delimiter
@@ -288,8 +360,8 @@ func (l *Lexer) lookupKeyword(w string) *token.Token {
 	case strings.HasPrefix(w, "image::"): //block image
 		return &token.Token{Type: token.BLOCK_IMAGE, Line: l.line, Literal: w}
 	case strings.HasPrefix(w,"image:"): //inline image
-		return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w}
-	case w == "NOTE:" || w == "TIP:" || w == "IMPORTANT:" || w == "WARNING:" || w == "CAUTION:":
+	//	return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w}
+	//case w == "NOTE:" || w == "TIP:" || w == "IMPORTANT:" || w == "WARNING:" || w == "CAUTION:":
 		//admonition
 		return &token.Token{Type: token.ADMONITION, Line: l.line, Literal: w[0:len(w)-1] /*name without trailing ":"*/}
 	case w == "'''" && l.prevToken.Type == token.NEWLINE:
@@ -299,6 +371,10 @@ func (l *Lexer) lookupKeyword(w string) *token.Token {
 		l.forceFinish()
 	}
 	return nil
+}
+
+func isColumn(ch rune) bool {
+	return ch == '|'
 }
 
 func isWhitespace(ch rune) bool {

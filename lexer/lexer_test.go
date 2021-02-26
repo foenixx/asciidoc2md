@@ -2,6 +2,9 @@ package lexer
 
 import (
 	"asciidoc2md/token"
+	"cdr.dev/slog"
+	"cdr.dev/slog/sloggers/slogtest"
+	"context"
 	"log"
 	"testing"
 	"github.com/stretchr/testify/assert"
@@ -46,11 +49,11 @@ type (
 	lt lexerTest //short alias
 )
 
-var cases = []lexerTestCase {
+var cases = []lexerTestCase{
 	{
-		name: "test 1",
+		name:  "test 1",
 		input: "\r текст с отступом\nтекст с пробелом после \r\n\n\rкакой-то текст",
-		tests:	[]lt{
+		tests: []lt{
 			{token.NEWLINE, "\r"},
 			{token.INDENT, " "},
 			{token.STR, "текст с отступом"},
@@ -117,20 +120,19 @@ image::image15_4.png[]`,
 			{token.BLOCK_IMAGE, "image::image15_3.png[]"},
 			{token.NEWLINE, "\n"},
 			{token.NEWLINE, "\n"},
-			{ token.STR, "После внесения изменений"},
+			{token.STR, "После внесения изменений"},
 			{token.INLINE_IMAGE, "image:image15_3.png[]"},
-			{ token.STR, "схему данных необходимо сохранить."},
+			{token.STR, "схему данных необходимо сохранить."},
 			{token.NEWLINE, "\n"},
 			{token.NEWLINE, "\n"},
 			{token.BLOCK_IMAGE, "image::image15_4.png[]"},
 			{token.EOF, ""},
 		},
-
 	},
 	{
 		name: "mixed lists",
 		input:
-`. list1
+		`. list1
 .. list2
 .not a list
 *not a list
@@ -142,13 +144,13 @@ image::image15_4.png[]`,
 			{token.BLOCK_TITLE, `not a list`}, {token.NEWLINE, "\n"},
 			{token.STR, "*not a list"}, {token.NEWLINE, "\n"},
 			{token.L_MARK, "***"}, {token.STR, "list3"}, {token.NEWLINE, "\n"},
-			{token.L_MARK, "*"}, {token.STR, "list4"},	{token.EOF, ""},
+			{token.L_MARK, "*"}, {token.STR, "list4"}, {token.EOF, ""},
 		},
 	},
 	{
 		name: "syntax block",
 		input:
-`----
+		`----
 "DocLoad.OutputFolderFormat": "yyyy-MM-dd_HH-mm-ss"
 ---- `,
 		tests: []lt{
@@ -159,7 +161,7 @@ image::image15_4.png[]`,
 	{
 		name: "block title",
 		input:
-`.title 1
+		`.title 1
 some text`,
 		tests: []lt{
 			{token.BLOCK_TITLE, `title 1`},
@@ -168,60 +170,103 @@ some text`,
 			{token.EOF, ""},
 		},
 	},
+	{
+		name: "inline keywords",
+		input: `====
+Если в правиле доступа... //EOF то
+в противном ---- случае ==== никаких____
+----`,
+		tests: []lt{
+			{token.EX_BLOCK, `====`},{token.NEWLINE, "\n"},
+			{token.STR, `Если в правиле доступа... //EOF то`},{token.NEWLINE, "\n"},
+			{token.STR, `в противном ---- случае ==== никаких____`},{token.NEWLINE, "\n"},
+			{token.SYNTAX_BLOCK, ``},
+			{token.EOF, ""},
+		},
+	},
+	{
+		name: "table",
+		input: `|===
+| text1 | text2|
+ |text3 | text4|
+	|text5|text6
+|===
+| text1 | text2|`,
+		tests: []lt{
+			{token.TABLE, `|===`},{token.NEWLINE, "\n"},
+			{token.COLUMN, `|`}, {token.STR, "text1"},
+				{token.COLUMN, `|`}, {token.STR, "text2"},{token.COLUMN, `|`},
+					{token.NEWLINE, "\n"},
+			{token.INDENT, " "},{token.COLUMN, `|`}, {token.STR, "text3"},
+				{token.COLUMN, `|`}, {token.STR, "text4"},{token.COLUMN, `|`},
+					{token.NEWLINE, "\n"},
+			{token.INDENT, "\t"},{token.COLUMN, `|`}, {token.STR, "text5"},
+				{token.COLUMN, `|`}, {token.STR, "text6"},{token.NEWLINE, "\n"},
+			{token.TABLE, `|===`},{token.NEWLINE, "\n"},
+			{token.STR, `| text1 | text2|`},	{token.EOF, ""},
+		},
+	},
 
+}
+
+
+func testACase(t *testing.T, tc *lexerTestCase, logger slog.Logger) {
+	lex := []*token.Token{}
+
+	l := New(tc.input, func(tok2 *token.Token) {
+		lex = append(lex, tok2)
+		t.Logf("type: %v, literal: %v", tok2.Type, tok2.Literal)
+	})
+	l.ReadAll()
+	if !assert.Len(t, lex, len(tc.tests)) {
+		return
+	}
+
+	for i, tt := range tc.tests {
+		var tok *token.Token
+		if i >= len(lex) {
+			tok = lex[len(lex)-1]
+		} else {
+			tok = lex[i]
+		}
+		assert.Equal(t, tt.expectedType, tok.Type, "invalid type! case: %v, step: %v", tc.name, i + 1)
+		assert.Equal(t, tt.expectedLiteral, tok.Literal, "invalid literal! case: %v, step: %v", tc.name, i + 1)
+	}
+
+}
+
+func TestAllCases(t *testing.T) {
+	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
+
+	for _, tc := range cases {
+		logger.Info(context.Background(), "-------- " + tc.name + "-----------")
+		testACase(t, &tc, logger)
+	}
+}
+
+var cases1 = []lexerTestCase {
 	{
 		name: "debug",
-		input: `.Пример
-[caption=""]
-====
-Если в правиле доступа...
-----
-sdfdsfsdf
-----
-====
+		input: `
+|===
+sdfsd|fsd| Плейсхолдер |Описание
+|\{yyyy} |Номер года документа, например 2012.
+|\{00000n} |Используется только для номера. Позволяет дополнять номер нулями до нужной длины.
+|\{yy} |Последние две цифры номера года.
+|\{MM} |Номер месяца вида "06".
+|\{MMM} |Номер месяца вида "Jun".
+|\{MMMM} |Номер месяца вида "June".
+|\{dd} |Номер дня "03".
+|\{M} |Номер месяца "6".
+|\{d} |Номер дня "3".
+|===
 `,
 		tests: []lt{},
 	},
 }
 
-
-func TestNextToken(t *testing.T) {
-
-	for _, tc := range cases[:len(cases)-1] {
-		lex := []*token.Token{}
-		t.Log("---------------------------------------")
-		l := New(tc.input, func(tok2 *token.Token) {
-			lex = append(lex, tok2)
-			t.Logf("type: %v, literal: %v", tok2.Type, tok2.Literal)
-		})
-		l.ReadAll()
-		assert.Len(t, lex, len(tc.tests))
-
-		for i, tt := range tc.tests {
-			var tok *token.Token
-			if i >= len(lex) {
-				tok = lex[len(lex)-1]
-			} else {
-				tok = lex[i]
-			}
-			assert.Equal(t, tt.expectedType, tok.Type, "invalid type! case: %v, step: %v", tc.name, i + 1)
-			assert.Equal(t, tt.expectedLiteral, tok.Literal, "invalid literal! case: %v, step: %v", tc.name, i + 1)
-		}
-	}
-}
-
-func TestDebug(t *testing.T) {
-
-	for _, tc := range cases[len(cases)-1:] {
-		lex := []*token.Token{}
-		t.Log("---------------------------------------")
-		l := New(tc.input, func(tok2 *token.Token) {
-			lex = append(lex, tok2)
-			t.Logf("type: %v, literal: %v", tok2.Type, tok2.Literal)
-		})
-		l.ReadAll()
-		assert.Len(t, lex, len(tc.tests))
-
-	}
+func TestCases1(t *testing.T) {
+	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
+	testACase(t, &cases1[0], logger)
 }
 

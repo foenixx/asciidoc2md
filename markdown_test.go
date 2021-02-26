@@ -39,9 +39,6 @@ var input2 = `
 * item1
 `
 
-var input = `
-* item 1
-`
 
 func testACase(t *testing.T, tc *convtc, log slog.Logger) {
 	p := parser.New(tc.input, log)
@@ -98,7 +95,23 @@ func Test1(t *testing.T) {
 
 func TestConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
-	p := parser.New(input2, logger)
+	input :=
+`
+[cols=",",options="header",]
+|===
+| Плейсхолдер |Описание
+|\{yyyy} |Номер года документа, например 2012.
+|\{00000n} |Используется только для номера. Позволяет дополнять номер нулями до нужной длины.
+|\{yy} |Последние две цифры номера года.
+|\{MM} |Номер месяца вида "06".
+|\{MMM} |Номер месяца вида "Jun".
+|\{MMMM} |Номер месяца вида "June".
+|\{dd} |Номер дня "03".
+|\{M} |Номер месяца "6".
+|\{d} |Номер дня "3".
+|===
+`
+	p := parser.New(input, logger)
 	doc, err := p.Parse()
 	assert.Nil(t, err)
 	logger.Info(context.Background(), doc.String(""))
