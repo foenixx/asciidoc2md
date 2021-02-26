@@ -178,5 +178,50 @@ func (a *Admonition) String(indent string) string {
 	return fmt.Sprintf("\n%sadmonition: %s%s", indent, a.Kind, cStr)
 }
 
+type Table struct {
+	Header bool
+	Options string
+	Columns int
+	Cells   []*ContainerBlock
+}
+
+
+func (t *Table) AddColumn(c *ContainerBlock) {
+	t.Cells = append(t.Cells, c)
+}
+
+func (t *Table) String(indent string) string {
+	str := strings.Builder{}
+	//ind2 := strings.Repeat("  ", l.Level)
+	str.WriteString(fmt.Sprintf("\n%stable begin:", indent))
+	if t.IsSimple() {
+		str.WriteString(" (simple)")
+	}
+	for _, cell := range t.Cells {
+		if cell != nil {
+			str.WriteString(fmt.Sprintf("\n%scell:", indent))
+			str.WriteString(cell.String(indent + "  "))
+			//str.WriteString("\n")
+		} else {
+			str.WriteString(fmt.Sprintf("\n%scell: nil", indent))
+		}
+	}
+	str.WriteString(fmt.Sprintf("\n%stable end", indent))
+	return str.String()
+}
+
+//  IsSimple checks if every cell is a single text paragraph.
+func (t *Table) IsSimple() bool {
+	for _, c := range t.Cells {
+		if len(c.Blocks) != 1 {
+			return false
+		}
+		if _, ok := c.Blocks[0].(*Paragraph); !ok {
+			return false
+		}
+	}
+	return true
+}
+
 
 var _ Block = (*Header)(nil)

@@ -23,6 +23,7 @@ type Parser struct{
 	//nestedListLevel int
 	curBlock ast.Block //block which is being parsed
 	log slog.Logger
+	tableFlag bool
 }
 
 func New(input string, logger slog.Logger) *Parser {
@@ -119,7 +120,7 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 	var options string
 	if p.tok.Type == token.BLOCK_OPTS {
 		options = p.tok.Literal
-		p.log.Debug(context.Background(), "parseBlock: BLOCK_OPTS", slog.F("token", p.tok))
+		//p.log.Debug(context.Background(), "parseBlock: BLOCK_OPTS", slog.F("token", p.tok))
 		//skip to the token after newline
 		if !p.advanceMany(2) {
 			return nil, fmt.Errorf("cannot skip newline: unexpected EOF")
@@ -145,15 +146,15 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		return h, nil
 	case p.tok.Type == token.STR || p.tok.Type == token.INLINE_IMAGE: //paragraph may begin with image
 		//paragraph
-		p, err := p.parseParagraph()
-		return (ast.Block)(p), err
+		par, err := p.parseParagraph()
+		return par, err
 	case p.tok.Type == token.BLOCK_IMAGE:
 		im, err := p.parseImage()
 		if err != nil {
 			return nil, err
 		}
 		im.Options = options
-		return (ast.Block)(im), nil
+		return im, nil
 	case p.tok.Type == token.HOR_LINE:
 		if !p.advance() {
 			return nil, fmt.Errorf("cannot advance after HOR_LINE token")
@@ -167,15 +168,19 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		return adn, nil
 	case p.tok.Type == token.EX_BLOCK:
 		//example block
-		//if _, ok := p.curBlock.(*ast.ExampleBlock); ok {
-		//	//we're inside parseExampleBlock, just return
-		//}
 		b, err := p.parseExampleBlock()
 		if err != nil {
 			return nil, err
 		}
 		b.Options = options
-		return (ast.Block)(b), nil
+		return b, nil
+	case p.tok.Type == token.TABLE:
+		t, err := p.parseTable()
+		if err != nil {
+			return nil, err
+		}
+		t.Options = options
+		return t, nil
 	}
 	return nil, nil
 }
@@ -194,14 +199,16 @@ func (p *Parser) isParagraphEnd() bool {
 		p.isListMarker() ||
 		p.tok.Type == token.CONCAT_PAR ||
 		p.tok.Type == token.EX_BLOCK ||
-		p.tok.Type == token.QUOTE_BLOCK
+		p.tok.Type == token.QUOTE_BLOCK ||
+		//in table mode newline completes the paragraph (in simple mode)
+		((p.tok.Type == token.COLUMN || p.tok.Type == token.NEWLINE) && p.tableFlag)
 }
 
 func (p *Parser) parseExampleBlock() (*ast.ExampleBlock, error) {
 	//skip delimiter + newline tokens
 	var ex ast.ExampleBlock
 	p.curBlock = &ex
-	defer func() { p.curBlock = nil }()
+	defer func(old ast.Block) { p.curBlock = old }(p.curBlock)
 
 	if !p.advanceMany(2) {
 		return nil, fmt.Errorf("parse example block: cannot advance tokens")
@@ -434,4 +441,64 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 	}
 
 	//return &list, nil
+}
+
+func (p *Parser) parseTable() (*ast.Table, error) {
+	//skip delimiter + newline tokens
+	var t ast.Table
+
+	p.tableFlag = true //when tableFlag == true, paragraph could end at "|" symbol
+	defer func() { p.tableFlag = false } ()
+	//p.curBlock = &t
+	//defer func(old ast.Block) { p.curBlock = old }(p.curBlock)
+
+	if !p.advanceMany(2) {
+		return nil, fmt.Errorf("parse table: cannot advance tokens")
+	}
+	var countColumns = true
+	var cell *ast.ContainerBlock //current cell
+
+	for p.tok.Type != token.TABLE && p.tok.Type != token.EOF {
+		switch {
+		case p.tok.Type == token.COLUMN: //new cell
+			if countColumns {
+				t.Columns++
+			}
+			if cell != nil {
+				t.AddColumn(cell)
+			}
+			if !p.advance() {return nil, fmt.Errorf("parse table: cannot advance tokens")}
+			cell = &ast.ContainerBlock{} //current cell
+
+		case p.tok.Type == token.NEWLINE:
+			//stop counting at newline after some actual columns, thus "t.Columns>0"
+			if countColumns && t.Columns > 0 {
+				countColumns = false
+			}
+			if !p.advance() {
+				return nil, fmt.Errorf("parse table: cannot advance tokens")
+			}
+		case p.tok.Type == token.INDENT:
+			if !p.advance() {
+				return nil, fmt.Errorf("parse table: cannot advance tokens")
+			}
+		default:
+			b, err := p.parseBlock()
+			if err != nil {
+				return nil, err
+			}
+			if cell == nil {
+				return nil, fmt.Errorf("parse table: null cell")
+			}
+			cell.Add(b)
+		}
+	}
+	if p.tok.Type == token.TABLE {
+		//skip closing token
+		if !p.advance() {
+			return nil, fmt.Errorf("parse table: cannot advance tokens")
+		}
+	}
+	t.AddColumn(cell)
+	return &t, nil
 }

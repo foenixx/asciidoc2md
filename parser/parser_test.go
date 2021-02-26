@@ -105,16 +105,6 @@ any text
 `,
 		expected: ``,
 	},
-	{
-		name: "debug",
-		input:
-`
-Допустим, вы используете нумератор с именем вида Входящие-{YYYY}-{f:MainInfo.FolderName}.
-В карточке у вас есть поле "Папка" (MainInfo.FolderId, FolderName), где вы выбираете папку из номенклатуры дел.
-Если поле не заполняется автоматически сразу при создании карточки (специальным расширением), а должно выбираться регистратором, то для корректной работы в данном случае необходимо настроить:
-`	,
-		expected: "",
-	},
 }
 
 func testACase(t *testing.T, tc *parserTestCase, log slog.Logger) {
@@ -169,10 +159,25 @@ func TestParser(t *testing.T) {
 	}
 }
 
+var case1 = parserTestCase{
+name: "debug",
+input:
+`
+[cols=",",options="header",]
+|===
+
+| Плейсхолдер |Описание
+
+  |\{yyyy} |Номер года документа, например 2012.
+
+|===`	,
+expected: "",
+}
+
 func TestParser_DebugCase(t *testing.T) {
 	logger := slogtest.Make(t, nil)
 	logger.Info(context.Background(), "log message")
 
-	testACase(t, &cases[len(cases)-1], logger)
+	testACase(t, &case1, logger)
 }
 

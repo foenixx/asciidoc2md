@@ -27,7 +27,7 @@ func (c *Converter) RenderMarkdown(doc *ast.ContainerBlock, w io.Writer) {
 			data = c.ConvertList(blok.(*ast.List)) //+ "\n\n"
 			c.log.Debug(context.Background(), data)
 		case *ast.Paragraph:
-			data = c.ConvertParagraph(blok.(*ast.Paragraph)) //+ "\n\n"
+			data = c.ConvertParagraph(blok.(*ast.Paragraph)) + "\n"
 		case *ast.BlockTitle:
 			data = c.ConvertBlockTitle(blok.(*ast.BlockTitle))
 		case *ast.Header:
@@ -44,6 +44,8 @@ func (c *Converter) RenderMarkdown(doc *ast.ContainerBlock, w io.Writer) {
 			data = c.ConvertAdmonition(blok.(*ast.Admonition)) + "\n\n"
 		case *ast.ExampleBlock:
 			data = c.ConvertExampleBlock(blok.(*ast.ExampleBlock))
+		case *ast.Table:
+			data = c.ConvertTable(blok.(*ast.Table))
 		}
 		w.Write([]byte(data))
 	}
@@ -68,6 +70,39 @@ func (c *Converter) ConvertList(l *ast.List) string {
 	return output.String()
 }
 
+func (c *Converter) ConvertTable(t *ast.Table) string {
+	var output strings.Builder
+	//indent := c.curIndent
+
+	if !t.IsSimple() {
+		return "COMPLEX TABLE"
+	}
+	if t.Columns == 0 {
+		return "ZERO COLUMNS"
+	}
+	t.Header = true
+	row := 0
+	for i, cell := range t.Cells {
+		 if i % t.Columns == 0 {
+		 	//new row
+		 	row++
+		 	output.WriteString(c.curIndent + "| ")
+		 }
+		 if t.Header && row == 2 {
+		 	//let's write header delimiter
+		 	t.Header = false //TODO: remove dirty hack
+		 	output.WriteString(strings.Repeat(" --- |", t.Columns) + "\n" + c.curIndent + "| ")
+		 }
+		output.WriteString(c.ConvertParagraph(cell.Blocks[0].(*ast.Paragraph)) + " |")
+		if i % t.Columns == t.Columns - 1 {
+			//last cell of the current column
+			output.WriteString("\n")
+		}
+	}
+	//c.curIndent = indent
+	return output.String()
+}
+
 func (c *Converter) ConvertBlockTitle(h *ast.BlockTitle) string {
 	return fmt.Sprintf("_%v_\n", h.Title)
 }
@@ -80,7 +115,7 @@ func (c *Converter) ConvertHeader(h *ast.Header) string {
 //For details see https://squidfunk.github.io/mkdocs-material/reference/admonitions/.
 func (c *Converter) ConvertAdmonition(a *ast.Admonition) string {
 	//w == "NOTE:" || w == "TIP:" || w == "IMPORTANT:" || w == "WARNING:" || w == "CAUTION:":
-	return fmt.Sprintf("!!! note\n%v    %v", c.curIndent, c.ConvertParagraph(a.Content))
+	return fmt.Sprintf("!!! note\n%v    %v\n", c.curIndent, c.ConvertParagraph(a.Content))
 }
 
 func (c *Converter) ConvertParagraph(p *ast.Paragraph) string {
@@ -95,7 +130,7 @@ func (c *Converter) ConvertParagraph(p *ast.Paragraph) string {
 		}
 
 	}
-	output.WriteString("\n")
+	//output.WriteString("\n")
 	//return fmt.Sprintf("\n%v%v\n", c.curIndent, output.String())
 	return output.String()
 }
@@ -131,7 +166,7 @@ func (c *Converter) ConvertContainerBlock(p *ast.ContainerBlock, firstLineIndent
 		case *ast.Image:
 			output.WriteString(c.ConvertImage(b.(*ast.Image)))
 		case *ast.Paragraph:
-			output.WriteString(c.ConvertParagraph(b.(*ast.Paragraph)))
+			output.WriteString(c.ConvertParagraph(b.(*ast.Paragraph)) + "\n")
 //		case *ast.ContainerBlock:
 //			output.WriteString(c.ConvertContainerBlock(b.(*ast.ContainerBlock)))
 		case *ast.List:

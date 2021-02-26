@@ -39,5 +39,6 @@ const (
 	BLOCK_TITLE  = "BLOCK_TITLE"
 	EX_BLOCK     = "EX_BLOCK" //open example block "===="
 	QUOTE_BLOCK  = "QUOTE_BLOCK" //quotation block "____"
-	//EX_BLOCK_R   = "EX_BLOCK_R" //close example block "===="
+	TABLE		= "TABLE" //table "|===...."
+	COLUMN		= "COLUMN" //column separator "|"
 )
