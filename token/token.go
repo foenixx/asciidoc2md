@@ -41,4 +41,5 @@ const (
 	QUOTE_BLOCK  = "QUOTE_BLOCK" //quotation block "____"
 	TABLE		= "TABLE" //table "|===...."
 	COLUMN		= "COLUMN" //column separator "|"
+	A_COLUMN		= "A_COLUMN" //column separator "a|"
 )

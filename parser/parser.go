@@ -6,6 +6,7 @@ import (
 	"asciidoc2md/token"
 	"cdr.dev/slog"
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -115,9 +116,12 @@ forLoop:
 	return &doc, nil
 }
 
+var ErrCannotAdvance = errors.New("cannot advance tokens")
+
 func (p *Parser) parseBlock() (ast.Block, error) {
 
 	var options string
+
 	if p.tok.Type == token.BLOCK_OPTS {
 		options = p.tok.Literal
 		//p.log.Debug(context.Background(), "parseBlock: BLOCK_OPTS", slog.F("token", p.tok))
@@ -126,6 +130,7 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 			return nil, fmt.Errorf("cannot skip newline: unexpected EOF")
 		}
 	}
+
 
 	switch {
 	case p.isListMarker():
@@ -175,14 +180,36 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		b.Options = options
 		return b, nil
 	case p.tok.Type == token.TABLE:
+		p.log.Info(context.Background(), "before parseTable")
 		t, err := p.parseTable()
+		p.log.Info(context.Background(), "after parseTable", slog.F("curtoken", p.tok))
 		if err != nil {
 			return nil, err
 		}
-		t.Options = options
+		t.SetOptions(options)
+
 		return t, nil
+	case p.tok.Type == token.SYNTAX_BLOCK:
+		sb := &ast.SyntaxBlock{Options: options, Literal: p.tok.Literal}
+		if !p.advance() {
+			return nil, ErrCannotAdvance
+		}
+		return sb, nil
+	case p.tok.Type == token.BOOKMARK:
+		b := &ast.Bookmark{Literal: p.tok.Literal}
+		if !p.advance() {
+			return nil, ErrCannotAdvance
+		}
+		return b, nil
+	case p.tok.Type == token.INDENT || p.tok.Type == token.CONCAT_PAR:
+		//skip it for now
+		if !p.advance() {
+			return nil, ErrCannotAdvance
+		}
+		return nil, nil
 	}
-	return nil, nil
+	return nil, fmt.Errorf("parse block: unknown token %v", p.tok)
+	//return nil, nil
 }
 
 func (p *Parser) isDoubleNewline() bool {
@@ -194,14 +221,16 @@ func (p *Parser) isListMarker() bool {
 }
 
 func (p *Parser) isParagraphEnd() bool {
-	return (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) ||
-		p.tok.Type == token.EOF ||
-		p.isListMarker() ||
-		p.tok.Type == token.CONCAT_PAR ||
-		p.tok.Type == token.EX_BLOCK ||
-		p.tok.Type == token.QUOTE_BLOCK ||
-		//in table mode newline completes the paragraph (in simple mode)
-		((p.tok.Type == token.COLUMN || p.tok.Type == token.NEWLINE) && p.tableFlag)
+	return !(p.tok.Type == token.STR || p.tok.Type == token.INLINE_IMAGE)
+
+	//return (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) ||
+	//	p.tok.Type == token.EOF ||
+	//	p.isListMarker() ||
+	//	p.tok.Type == token.CONCAT_PAR ||
+	//	p.tok.Type == token.EX_BLOCK ||
+	//	p.tok.Type == token.QUOTE_BLOCK ||
+	//	//in table mode newline completes the paragraph (in simple mode)
+	//	((p.tok.Type == token.COLUMN || p.tok.Type == token.A_COLUMN || p.tok.Type == token.NEWLINE) && p.tableFlag)
 }
 
 func (p *Parser) parseExampleBlock() (*ast.ExampleBlock, error) {
@@ -224,7 +253,9 @@ func (p *Parser) parseExampleBlock() (*ast.ExampleBlock, error) {
 			if err != nil {
 				return nil, err
 			}
-			ex.Add(b)
+			if b != nil {
+				ex.Add(b)
+			}
 		}
 	}
 	if p.tok.Type == token.EX_BLOCK {
@@ -460,14 +491,16 @@ func (p *Parser) parseTable() (*ast.Table, error) {
 
 	for p.tok.Type != token.TABLE && p.tok.Type != token.EOF {
 		switch {
-		case p.tok.Type == token.COLUMN: //new cell
+		case p.tok.Type == token.COLUMN || p.tok.Type == token.A_COLUMN: //new cell
 			if countColumns {
 				t.Columns++
 			}
 			if cell != nil {
 				t.AddColumn(cell)
 			}
-			if !p.advance() {return nil, fmt.Errorf("parse table: cannot advance tokens")}
+			if !p.advance() {
+				return nil, ErrCannotAdvance
+			}
 			cell = &ast.ContainerBlock{} //current cell
 
 		case p.tok.Type == token.NEWLINE:
@@ -476,11 +509,11 @@ func (p *Parser) parseTable() (*ast.Table, error) {
 				countColumns = false
 			}
 			if !p.advance() {
-				return nil, fmt.Errorf("parse table: cannot advance tokens")
+				return nil, ErrCannotAdvance
 			}
 		case p.tok.Type == token.INDENT:
 			if !p.advance() {
-				return nil, fmt.Errorf("parse table: cannot advance tokens")
+				return nil, ErrCannotAdvance
 			}
 		default:
 			b, err := p.parseBlock()
@@ -490,7 +523,9 @@ func (p *Parser) parseTable() (*ast.Table, error) {
 			if cell == nil {
 				return nil, fmt.Errorf("parse table: null cell")
 			}
-			cell.Add(b)
+			if b != nil {
+				cell.Add(b)
+			}
 		}
 	}
 	if p.tok.Type == token.TABLE {

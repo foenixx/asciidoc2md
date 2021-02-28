@@ -1,4 +1,4 @@
-package main
+package markdown
 
 import (
 	"asciidoc2md/ast"
@@ -10,9 +10,13 @@ import (
 )
 
 type Converter struct {
-	ImageFolder string
-	curIndent string //current indentation level: 2 spaces, 4 spaces, ...
-	log slog.Logger
+	imageFolder string
+	curIndent   string //current indentation level: 2 spaces, 4 spaces, ...
+	log         slog.Logger
+}
+
+func New(imFolder string, logger slog.Logger) *Converter {
+	return &Converter{imageFolder: imFolder, log: logger}
 }
 
 func (c *Converter) RenderMarkdown(doc *ast.ContainerBlock, w io.Writer) {
@@ -70,12 +74,53 @@ func (c *Converter) ConvertList(l *ast.List) string {
 	return output.String()
 }
 
+// ConvertComplexTable converts complex table into a list.
+// For example, if input table has 3 columns, then output list would be:
+//  * _col1 header:_ (like italic)
+//    col1 text
+//    _col2 header:_
+//    col2 text
+//    _col3 header:_
+//    col3 text
+//
+func (c *Converter)	ConvertComplexTable(t *ast.Table) string {
+	var list ast.List
+	list.Numbered = false
+	list.Marker = "*"
+	header := []string{}
+
+	if !t.Header {
+		return "header!!!"
+	}
+	var par *ast.Paragraph
+	var ok bool
+	for _, cell := range t.Cells[:t.Columns] {
+		if par, ok = cell.Blocks[0].(*ast.Paragraph); !ok {
+			header = append(header, "HEADER IS NOT A PARAGRAPH!")
+		} else {
+			header = append(header, c.ConvertParagraph(par))
+		}
+	}
+	for row := 0; row < (len(t.Cells) - t.Columns) / t.Columns; row++ {
+		//every row
+		rowCont := &ast.ContainerBlock{}
+		for col := 0; col < t.Columns; col++ {
+			//every column
+			rowCont.Add(ast.NewParagraphFromStr(fmt.Sprintf("_%v_:", header[col])))
+			rowCont.Append(t.Cells[t.Columns * (row +1) + col].Blocks...)
+
+		}
+		list.AddItem(rowCont)
+	}
+	return c.ConvertList(&list)
+}
+
 func (c *Converter) ConvertTable(t *ast.Table) string {
 	var output strings.Builder
 	//indent := c.curIndent
 
 	if !t.IsSimple() {
-		return "COMPLEX TABLE"
+		return c.ConvertComplexTable(t)
 	}
 	if t.Columns == 0 {
 		return "ZERO COLUMNS"
@@ -183,7 +228,7 @@ func (c *Converter) ConvertContainerBlock(p *ast.ContainerBlock, firstLineIndent
 }
 
 func (c *Converter) ConvertImage(p *ast.Image) string {
-	return fmt.Sprintf("![](%v)\n", c.ImageFolder + p.Path)
+	return fmt.Sprintf("![](%v)\n", c.imageFolder+ p.Path)
 }
 
 func (c *Converter) ConvertInlineImage(p *ast.InlineImage) string {
