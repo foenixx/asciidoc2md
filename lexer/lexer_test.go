@@ -5,6 +5,7 @@ import (
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/slogtest"
 	"context"
+	"io/ioutil"
 	"log"
 	"testing"
 	"github.com/stretchr/testify/assert"
@@ -188,7 +189,7 @@ some text`,
 		name: "table",
 		input: `|===
 | text1 | text2|
- |text3 | text4|
+ a|text3 | text4|
 	|text5|text6
 |===
 | text1 | text2|`,
@@ -197,7 +198,7 @@ some text`,
 			{token.COLUMN, `|`}, {token.STR, "text1"},
 				{token.COLUMN, `|`}, {token.STR, "text2"},{token.COLUMN, `|`},
 					{token.NEWLINE, "\n"},
-			{token.INDENT, " "},{token.COLUMN, `|`}, {token.STR, "text3"},
+			{token.INDENT, " "},{token.A_COLUMN, "a|"}, {token.STR, "text3"},
 				{token.COLUMN, `|`}, {token.STR, "text4"},{token.COLUMN, `|`},
 					{token.NEWLINE, "\n"},
 			{token.INDENT, "\t"},{token.COLUMN, `|`}, {token.STR, "text5"},
@@ -249,8 +250,8 @@ var cases1 = []lexerTestCase {
 		name: "debug",
 		input: `
 |===
-sdfsd|fsd| Плейсхолдер |Описание
-|\{yyyy} |Номер года документа, например 2012.
+sdfsd|fsd a| Плейсхолдер |Описание
+a|\{yyyy} |Номер года документа, например 2012.
 |\{00000n} |Используется только для номера. Позволяет дополнять номер нулями до нужной длины.
 |\{yy} |Последние две цифры номера года.
 |\{MM} |Номер месяца вида "06".
@@ -270,3 +271,15 @@ func TestCases1(t *testing.T) {
 	testACase(t, &cases1[0], logger)
 }
 
+func TestFile1(t *testing.T) {
+	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
+	input, err := ioutil.ReadFile("../data/test.adoc")
+	if !assert.NoError(t, err) {
+		return
+	}
+	var tc lexerTestCase
+	tc.name = "test.adoc"
+	tc.input = string(input)
+
+	testACase(t, &tc, logger)
+}

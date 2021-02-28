@@ -310,7 +310,7 @@ func (l *Lexer) readString() []*token.Token {
 	// read word by word til EOL or EOF
 	for ! (isNewLine(l.ch) || l.ch == 0) {
 		// read a word without embracing whitespaces
-		w := l.readWord()
+		w = l.readWord()
 		tok = l.lookupInlineKeyword(w)
 
 		if tok != nil {
@@ -339,6 +339,9 @@ func (l *Lexer) lookupInlineKeyword(w string) *token.Token {
 		return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w}
 	case l.tableFlag && w == "|": //column
 		return &token.Token{Type: token.COLUMN, Line: l.line, Literal: w}
+	case l.tableFlag && w == "a" && l.ch == '|':
+		l.readRune()
+		return &token.Token{Type: token.A_COLUMN, Line: l.line, Literal: "a|"}
 	}
 	return nil
 }

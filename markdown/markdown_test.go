@@ -1,4 +1,4 @@
-package main
+package markdown
 
 import (
 	"asciidoc2md/parser"
@@ -18,7 +18,7 @@ type convtc struct{
 	output string
 }
 
-var cases = []convtc {
+var cases = []convtc{
 	{
 		input: `
 * item0
@@ -47,7 +47,7 @@ func testACase(t *testing.T, tc *convtc, log slog.Logger) {
 		return
 	}
 	w := strings.Builder{}
-	conv := Converter{ImageFolder: "data/images/", log: log}
+	conv := Converter{imageFolder: "data/images/", log: log}
 	conv.RenderMarkdown(doc, &w)
 	assert.Equal(t, tc.output, w.String())
 }
@@ -72,7 +72,7 @@ func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
 		}
 		defer fo.Close()
 		w := bufio.NewWriter(fo)
-		conv := Converter{ImageFolder: "data/images/", log: log}
+		conv := Converter{imageFolder: "data/images/", log: log}
 		conv.RenderMarkdown(doc, w)
 		err = w.Flush()
 		if !assert.NoError(t, err) {
@@ -90,7 +90,7 @@ func TestAll(t *testing.T) {
 
 func Test1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	testAFile(t, "data/test.adoc", "test.md", logger)
+	testAFile(t, "../data/test.adoc", "../test.md", logger)
 }
 
 func TestConverter(t *testing.T) {
@@ -116,7 +116,7 @@ func TestConverter(t *testing.T) {
 	assert.Nil(t, err)
 	logger.Info(context.Background(), doc.String(""))
 	var builder = strings.Builder{}
-	conv := Converter{ImageFolder: "data/images/", log: logger}
+	conv := Converter{imageFolder: "data/images/", log: logger}
 	conv.log.Debug(context.Background(), "message")
 	conv.RenderMarkdown(doc, &builder)
 	assert.Equal(t, "text", builder.String())

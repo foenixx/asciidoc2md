@@ -1,7 +1,7 @@
 package main
 
 import (
-	"asciidoc2md/ast"
+	"asciidoc2md/markdown"
 	"asciidoc2md/parser"
 	"bufio"
 	"cdr.dev/slog"
@@ -25,9 +25,6 @@ func initLog(verbose bool) {
 	stdLog.SetOutput(slog.Stdlib(context.Background(), log).Writer())
 }
 
-func logDoc(doc *ast.ContainerBlock) {
-
-}
 
 func main() {
 	initLog(true)
@@ -50,7 +47,7 @@ func main() {
 	}
 	defer fo.Close()
 	w := bufio.NewWriter(fo)
-	conv := Converter{ImageFolder: "data/images/", log: log}
+	conv := markdown.New("data/images/", log)
 	conv.RenderMarkdown(doc, w)
 	err = w.Flush()
 	if err != nil {

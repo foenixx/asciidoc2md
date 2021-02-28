@@ -124,6 +124,7 @@ func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
 	}
 
 	p := New(string(input), log)
+	log.Info(context.Background(), "test message")
 	doc, err := p.Parse()
 	if !assert.NoError(t, err) {
 		return
@@ -162,15 +163,7 @@ func TestParser(t *testing.T) {
 var case1 = parserTestCase{
 name: "debug",
 input:
-`
-[cols=",",options="header",]
-|===
-
-| Плейсхолдер |Описание
-
-  |\{yyyy} |Номер года документа, например 2012.
-
-|===`	,
+"[[cardmergeoptionsdetails]]**Структура `json` с опциями слияния, описание свойств, их типы и значения по умолчанию:**",
 expected: "",
 }
 

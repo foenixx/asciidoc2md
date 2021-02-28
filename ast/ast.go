@@ -18,6 +18,10 @@ func (b *ContainerBlock) Add(blok Block) {
 	b.Blocks = append(b.Blocks, blok)
 }
 
+func (b *ContainerBlock) Append(blok ...Block) {
+	b.Blocks = append(b.Blocks, blok...)
+}
+
 func (b *ContainerBlock) String(indent string) string {
 	str := strings.Builder{}
 	str.WriteString(fmt.Sprintf("\n%scontainer block:", indent))
@@ -38,6 +42,12 @@ type Paragraph struct {
 func (b *Paragraph) String(indent string) string {
 	s := b.ContainerBlock.String(indent)
 	return strings.Replace(s, "container block", "paragraph", 1)
+}
+
+func NewParagraphFromStr(s string) *Paragraph {
+	par := Paragraph{}
+	par.ContainerBlock.Add(&Text{Text: s})
+	return &par
 }
 
 type ExampleBlock struct {
@@ -125,7 +135,12 @@ func (l *List) LastItem() *ContainerBlock {
 }
 
 type SyntaxBlock struct {
+	Options string
+	Literal string
+}
 
+func (sb *SyntaxBlock) String(indent string) string {
+	return fmt.Sprintf("\n%ssyntax block: %s", indent, utils.ShortenString(sb.Literal, 30, 30))
 }
 
 type Image struct {
@@ -153,7 +168,7 @@ type Text struct {
 
 
 func (t *Text) String(indent string) string {
-	return fmt.Sprintf("\n%stext: %v", indent, utils.FirstN(t.Text, 100))
+	return fmt.Sprintf("\n%stext: %v", indent, utils.ShortenString(t.Text, 30, 30))
 }
 
 type HorLine struct {
@@ -185,6 +200,12 @@ type Table struct {
 	Cells   []*ContainerBlock
 }
 
+func (t *Table) SetOptions(options string) {
+	t.Options = options
+	if strings.Contains(t.Options, "header") {
+		t.Header = true
+	}
+}
 
 func (t *Table) AddColumn(c *ContainerBlock) {
 	t.Cells = append(t.Cells, c)
@@ -193,7 +214,7 @@ func (t *Table) AddColumn(c *ContainerBlock) {
 func (t *Table) String(indent string) string {
 	str := strings.Builder{}
 	//ind2 := strings.Repeat("  ", l.Level)
-	str.WriteString(fmt.Sprintf("\n%stable begin:", indent))
+	str.WriteString(fmt.Sprintf("\n%stable begin: %v cols", indent, t.Columns))
 	if t.IsSimple() {
 		str.WriteString(" (simple)")
 	}
@@ -221,6 +242,14 @@ func (t *Table) IsSimple() bool {
 		}
 	}
 	return true
+}
+
+type Bookmark struct {
+	Literal string
+}
+
+func (b *Bookmark) String(indent string) string {
+	return fmt.Sprintf("\n%sbookmark: %s", indent, b.Literal)
 }
 
 
