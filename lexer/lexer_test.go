@@ -37,6 +37,25 @@ func TestReadRune(t *testing.T) {
 	}
 }
 
+func TestShifts(t *testing.T) {
+	input := `абвгд`
+	l := New(input, func(tok2 *token.Token) {
+		//t.Logf("type: %v, literal: %v", tok2.Type, tok2.Literal)
+	})
+	assert.Equal(t, 'а', l.ch)
+	l.readRune()
+	assert.Equal(t, 'б', l.ch)
+	l.readRune()
+	assert.Equal(t, 'в', l.ch)
+	l.Shift(2) // 'г' takes 2 bytes, 'д' expected
+	assert.Equal(t, 'д', l.ch)
+	l.Shift(-2) // back to 'д'
+	assert.Equal(t, 'д', l.ch)
+	l.Shift(-2*3) // back to 'д'
+	assert.Equal(t, 'в', l.ch)
+
+}
+
 type (
 	lexerTestCase struct {
 		name string
@@ -207,6 +226,14 @@ some text`,
 			{token.STR, `| text1 | text2|`},	{token.EOF, ""},
 		},
 	},
+	{
+		name: "bookmark",
+		input: "[[cardmergeoptionsdetails]]**Структура `json` с опциями слияния, [[bookmark]]описание свойств, их типы и значения по умолчанию:**",
+		tests: []lt{
+			{token.BOOKMARK, "cardmergeoptionsdetails"},{token.STR, "**Структура `json` с опциями слияния, описание свойств, их типы и значения по умолчанию:**"},
+			{token.EOF, ""},
+		},
+	},
 
 }
 
@@ -245,22 +272,16 @@ func TestAllCases(t *testing.T) {
 	}
 }
 
+
 var cases1 = []lexerTestCase {
 	{
 		name: "debug",
 		input: `
-|===
-sdfsd|fsd a| Плейсхолдер |Описание
-a|\{yyyy} |Номер года документа, например 2012.
-|\{00000n} |Используется только для номера. Позволяет дополнять номер нулями до нужной длины.
-|\{yy} |Последние две цифры номера года.
-|\{MM} |Номер месяца вида "06".
-|\{MMM} |Номер месяца вида "Jun".
-|\{MMMM} |Номер месяца вида "June".
-|\{dd} |Номер дня "03".
-|\{M} |Номер месяца "6".
-|\{d} |Номер дня "3".
-|===
+=== Системные требования
+
+[[book1]]*Требования к аппаратной конфигу[[book2]]рации*
+
+NOTE: Указаны примерные в расчёте на среднюю активность пользователей и могут отличаться в зависимости от нагрузки и развернутой конфигурации.
 `,
 		tests: []lt{},
 	},
