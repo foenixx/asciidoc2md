@@ -46,8 +46,8 @@ func ShortenString(s string, first int, last int) string {
 	}
 }
 
-func RuneIs(r rune, list []rune) bool {
-	for _, el := range list {
+func RuneIs(r rune, runes ...rune) bool {
+	for _, el := range runes {
 		if el == r {
 			return true
 		}

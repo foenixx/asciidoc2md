@@ -3,6 +3,7 @@ package lexer
 import (
 	"asciidoc2md/token"
 	"asciidoc2md/utils"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -54,6 +55,28 @@ func (l *Lexer) forceFinish() {
 	l.ch = 0
 }
 
+//Shift increments l.readPosition on bts bytes (not runes!) and reads symbol there.
+// For example, the current lexer state is:
+//
+//    (readPosition)
+//     ↓
+//   абвгд
+//    ↑
+//   (l.ch='б')
+//
+// Now l.Shift(2) gets us at:
+//
+//       (readPosition)
+//       ↓
+//   абвгд
+//      ↑
+//     (l.ch='г')
+//
+func (l *Lexer) Shift(bts int) {
+	l.readPosition += bts
+	l.readRune()
+}
+
 func (l *Lexer) readRune() {
 	var width int
 	if l.readPosition >= len(l.input) {
@@ -101,7 +124,7 @@ func (l *Lexer) ReadAll() {
 func (l *Lexer) NextToken() bool {
 
 	switch  {
-	case l.ch == '.' && l.prevToken.Type == token.NEWLINE && !utils.RuneIs(l.peekRune(), []rune{'.','*',' ','\t'}):
+	case l.ch == '.' && l.prevToken.Type == token.NEWLINE && !utils.RuneIs(l.peekRune(), '.','*',' ','\t'):
 		//block title ".title"
 		l.readRune() // move to a next char
 		l.setNewToken(token.BLOCK_TITLE, l.line, l.readLine())
@@ -121,7 +144,8 @@ func (l *Lexer) NextToken() bool {
 		t := l.readHeaderOrExample()
 		l.setToken(t)
 
-	case isListMarker(l.ch) && utils.RuneIs(l.peekRune(), []rune{'.','*',' ','\t'}):
+	case isListMarker(l.ch) && l.prevToken.Type == token.NEWLINE && utils.RuneIs(l.peekRune(), '.','*',' ','\t'):
+
 		// "* list" is a list
 		// "** list" is a list
 		// "*text" is not a list
@@ -134,15 +158,14 @@ func (l *Lexer) NextToken() bool {
 		} else {
 			l.setNewToken(token.NL_MARK, l.line, m)
 		}
+	case l.ch == '[' && l.peekRune() == '[':
+		//bookmark
+		l.readRune() //second opening bracket
+		l.readRune() //jump to the bookmark text
+		l.setToken(l.readBookmark())
 	case l.ch == '[' && l.prevToken.Type == token.NEWLINE:
-		l.readRune()
-		if l.ch == '[' {
-			//bookmark
-			l.setToken(l.readBookmark())
-		} else {
-			//block options "[source, json]"
-			l.setToken(l.readBlockOptions())
-		}
+		//block options "[source, json]"
+		l.setToken(l.readBlockOptions())
 	case l.ch == ':' && l.prevToken.Type == token.NEWLINE:
 		//ignore asciidoc options ":keyword: text"
 		l.readLine()
@@ -153,6 +176,8 @@ func (l *Lexer) NextToken() bool {
 		tokens := l.readString() //read til EOL
 
 		switch {
+		//case len(tokens) == 0:
+			//do nothing
 		case tokens[0].Type == token.BLOCK_DELIM:
 			// "----" syntax block
 			l.setNewToken(token.SYNTAX_BLOCK, l.line, l.readSyntaxBlock(tokens[0]))
@@ -203,16 +228,22 @@ func (l *Lexer) readBlockOptions() *token.Token {
 	return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: l.input[pos:l.position]}
 }
 
-// reads "[[bookmark_text]]]"
+// reads "bookmark_text]]"
 func (l *Lexer) readBookmark() *token.Token {
 	pos := l.position
-	b := l.readLine()
-	//should be enclosed in double brackets
-	if strings.HasSuffix(b, "]]") {
-		// return bookmark text
-		return &token.Token{Type: token.BOOKMARK, Line: l.line, Literal: b[1: len(b) - 2]}
+	//read until closing bracket
+	l.readUntil(true, true, ']')
+	if l.ch != ']' {
+		return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: l.input[pos:l.position]}
 	}
-	return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: l.input[pos:l.position]}
+	l.readRune()
+	if l.ch != ']' {
+		return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: l.input[pos:l.position]}
+	}
+	// return bookmark text
+	defer l.readRune() //jump to the text after bookmark
+	return &token.Token{Type: token.BOOKMARK, Line: l.line, Literal: l.input[pos:l.position-1]}
+
 }
 
 func (l *Lexer) readHeaderOrExample() *token.Token {
@@ -269,6 +300,14 @@ func (l *Lexer) readWord() string {
 	return l.input[pos:l.position]
 }
 
+func (l *Lexer) readUntil(eol bool, eof bool, runes ...rune) string {
+	pos := l.position
+	for ! (utils.RuneIs(l.ch, runes...) || (eol && isNewLine(l.ch)) || (eof && l.ch == 0)) {
+		l.readRune()
+	}
+	return l.input[pos:l.position]
+}
+
 func (l *Lexer) readLine() string {
 	pos := l.position
 	for ! (isNewLine(l.ch) || l.ch == 0) {
@@ -292,25 +331,37 @@ func (l *Lexer) readString() []*token.Token {
 	end := l.position // end of the last processed word
 	var w string
 	var tok *token.Token
+	var bts int
 
 	//process full-line keywords first
 	if l.prevToken.Type == token.NEWLINE {
 		lexerState := l.Position()
 		w = l.readLine()
-		tok = l.lookupLineKeyword(w)
+		tok, bts = l.lookupLineKeyword(w)
 		if tok != nil {
-			l.readLine() //skip the line
+			//l.readLine() //skip the line
 			tokens = append(tokens, tok)
-			return tokens
+			if bts < len(w) {
+				//only part of the string is consumed, return the rest to processing
+				l.Shift(bts - len(w))
+			} else {
+				//entire string is consumed
+				return tokens
+			}
+		} else {
+			//didn't found a keyword, rewind to previous position
+			l.Rewind(lexerState)
 		}
-		//didn't found a keyword, rewind to previous position
-		l.Rewind(lexerState)
 	}
 	// not let's process inline keywords
 	// read word by word til EOL or EOF
 	for ! (isNewLine(l.ch) || l.ch == 0) {
 		// read a word without embracing whitespaces
 		w = l.readWord()
+		// cannot read next word
+		if w == "" {
+			return tokens
+		}
 		tok = l.lookupInlineKeyword(w)
 
 		if tok != nil {
@@ -339,41 +390,51 @@ func (l *Lexer) lookupInlineKeyword(w string) *token.Token {
 		return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w}
 	case l.tableFlag && w == "|": //column
 		return &token.Token{Type: token.COLUMN, Line: l.line, Literal: w}
-	case l.tableFlag && w == "a" && l.ch == '|':
+	case l.tableFlag && w == "a" && l.ch == '|': // 'a|' column
 		l.readRune()
 		return &token.Token{Type: token.A_COLUMN, Line: l.line, Literal: "a|"}
 	}
 	return nil
 }
 
+
+var admonitionRE = regexp.MustCompile(`^\s*((?:NOTE)|(?:TIP)|(?:IMPORTANT)|(?:WARNING)|(?:CAUTION)):\s(.*)$`)
 /*
-lookupLineKeyword is used only for starting from newline keywords
+lookupLineKeyword is used only for starting from newline keywords.
+Returns found token and count of consumed bytes.
 */
-func (l *Lexer) lookupLineKeyword(w string) *token.Token {
+func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 	switch {
 	case strings.HasPrefix(w, "|==="):  //table
-		return &token.Token{Type: token.TABLE, Line: l.line, Literal: w}
+		return &token.Token{Type: token.TABLE, Line: l.line, Literal: w}, len(w)
 	//case l.tableFlag && w == "|": //column
 	//	return &token.Token{Type: token.COLUMN, Line: l.line, Literal: w}
 	case strings.HasPrefix(w, "____"): //quotation block
-		return &token.Token{Type: token.QUOTE_BLOCK, Line: l.line, Literal: "____"}
+		return &token.Token{Type: token.QUOTE_BLOCK, Line: l.line, Literal: "____"}, len(w)
 	case strings.HasPrefix(w, "----"): //block delimiter
 		// actual literal could have trailing spaces, let's don't bother trimming them
-		return &token.Token{Type: token.BLOCK_DELIM, Line: l.line, Literal: "----"}
+		return &token.Token{Type: token.BLOCK_DELIM, Line: l.line, Literal: "----"}, len(w)
 	case strings.HasPrefix(w, "image::"): //block image
-		return &token.Token{Type: token.BLOCK_IMAGE, Line: l.line, Literal: w}
-	case strings.HasPrefix(w,"image:"): //inline image
+		return &token.Token{Type: token.BLOCK_IMAGE, Line: l.line, Literal: w}, len(w)
+	//case strings.HasPrefix(w,"image:"): //inline image
 	//	return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w}
-	//case w == "NOTE:" || w == "TIP:" || w == "IMPORTANT:" || w == "WARNING:" || w == "CAUTION:":
-		//admonition
-		return &token.Token{Type: token.ADMONITION, Line: l.line, Literal: w[0:len(w)-1] /*name without trailing ":"*/}
 	case w == "'''" && l.prevToken.Type == token.NEWLINE:
-		return &token.Token{Type: token.HOR_LINE, Line: l.line, Literal: w}
+		return &token.Token{Type: token.HOR_LINE, Line: l.line, Literal: w}, len(w)
 	case w == "//EOF" && l.prevToken.Type == token.NEWLINE:
-		//interrupt parsing here, simplify debugging
+		//interrupt parsing here, for debugging sake
 		l.forceFinish()
+	default:
+		//case w == "NOTE:" || w == "TIP:" || w == "IMPORTANT:" || w == "WARNING:" || w == "CAUTION:":
+		//admonition
+		matches := admonitionRE.FindStringSubmatch(w)
+		// full string match + 2 capturing groups
+		if len(matches) != 3 {
+			return nil, 0
+		}
+		return &token.Token{Type: token.ADMONITION, Line: l.line, Literal: matches[1]}, len(matches[1]) + 2 /* name and ": " */
+
 	}
-	return nil
+	return nil, 0
 }
 
 func isColumn(ch rune) bool {
@@ -391,7 +452,8 @@ func isNewLine(ch rune) bool {
 
 func isWordDelimiter(ch rune) bool {
 	return isWhitespace(ch) || isNewLine(ch) ||
-			//ch == '.' || ch == ',' || ch == '!' || ch == '?' || //punctuation
+			// "before[[bookmark]]after"
+			ch == '[' ||
 			ch == 0
 }
 
