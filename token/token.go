@@ -8,7 +8,7 @@ type Token struct {
 	Type TokenType
 	Literal string
 	Line uint
-	//Position int
+	//GetState int
 }
 
 func (t *Token) String() string {
@@ -41,5 +41,5 @@ const (
 	QUOTE_BLOCK  = "QUOTE_BLOCK" //quotation block "____"
 	TABLE		= "TABLE" //table "|===...."
 	COLUMN		= "COLUMN" //column separator "|"
-	A_COLUMN		= "A_COLUMN" //column separator "a|"
+	A_COLUMN	= "A_COLUMN" //column separator "a|"
 )
