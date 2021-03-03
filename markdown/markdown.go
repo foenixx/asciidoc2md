@@ -19,7 +19,7 @@ func New(imFolder string, logger slog.Logger) *Converter {
 	return &Converter{imageFolder: imFolder, log: logger}
 }
 
-func (c *Converter) RenderMarkdown(doc *ast.ContainerBlock, w io.Writer) {
+func (c *Converter) RenderMarkdown(doc *ast.Document, w io.Writer) {
 	for i, blok := range doc.Blocks {
 		var data string
 		//write extra newline before every block except the first one
@@ -172,6 +172,8 @@ func (c *Converter) ConvertParagraph(p *ast.Paragraph) string {
 			output.WriteString(b.(*ast.Text).Text)
 		case *ast.InlineImage:
 			output.WriteString(c.ConvertInlineImage(b.(*ast.InlineImage)))
+		case *ast.Link:
+			output.WriteString(c.ConvertLink(b.(*ast.Link)))
 		}
 
 	}
@@ -237,4 +239,8 @@ func (c *Converter) ConvertInlineImage(p *ast.InlineImage) string {
 
 func (c *Converter) ConvertHorLine(p *ast.HorLine) string {
 	return "***\n"
+}
+
+func (c *Converter) ConvertLink(l *ast.Link) string {
+	return fmt.Sprintf("[%s](%s)", l.Text, l.Url)
 }

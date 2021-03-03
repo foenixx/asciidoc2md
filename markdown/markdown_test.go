@@ -97,11 +97,8 @@ func TestConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 	input :=
 `
-=== Системные требования
-
-*Требования к аппаратной конфигурации*
-
-NOTE: Указаны примерные в расчёте на среднюю активность пользователей и могут отличаться в зависимости от нагрузки и развернутой конфигурации.
+text https://olle[text] 
+text
 `
 	p := parser.New(input, logger)
 	doc, err := p.Parse()
@@ -111,5 +108,7 @@ NOTE: Указаны примерные в расчёте на среднюю а
 	conv := Converter{imageFolder: "data/images/", log: logger}
 	conv.log.Debug(context.Background(), "message")
 	conv.RenderMarkdown(doc, &builder)
-	assert.Equal(t, "text", builder.String())
+	res := builder.String()
+	logger.Info(context.Background(), res)
+	assert.Equal(t, "text", res)
 }
