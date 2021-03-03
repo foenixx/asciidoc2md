@@ -90,8 +90,8 @@ func (p *Parser) readAll() {
 	}
 }
 
-func (p *Parser) Parse() (*ast.ContainerBlock, error) {
-	var doc ast.ContainerBlock
+func (p *Parser) Parse() (*ast.Document, error) {
+	var doc ast.Document
 
 	p.readAll()
 

@@ -261,7 +261,7 @@ func (l *Lexer) readString() *token.Token {
 		if tok != nil {
 			if bts < len(w) {
 				//only part of the string is consumed, return the rest to processing
-				l.Shift(bts - len(w))
+				l.Shift(bts - len(w) - 1)
 			}
 			return tok
 		}

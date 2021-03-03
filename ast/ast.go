@@ -35,6 +35,15 @@ func (b *ContainerBlock) String(indent string) string {
 	return str.String()
 }
 
+type Document struct {
+	ContainerBlock
+}
+
+func (b *Document) String(indent string) string {
+	s := b.ContainerBlock.String(indent)
+	return strings.Replace(s, "container block", "document", 1)
+}
+
 type Paragraph struct {
 	ContainerBlock
 }
