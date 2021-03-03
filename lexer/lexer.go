@@ -14,6 +14,7 @@ type Lexer struct {
 	readPosition int // current reading position in input (after current char)
 	prevToken    *token.Token
 	ch			 rune
+	eof bool
 	line 		 uint //current line
 	tableFlag 		bool //we've started parsing table, this flag is set after "|===" token occurred
 }
@@ -26,10 +27,11 @@ type State struct {
 	line 		 uint
 	tableFlag 	bool
 	prevToken   *token.Token
+	eof bool
 }
 
 func New(input string) *Lexer {
-	l := &Lexer{input: input}
+	l := &Lexer{input: input, ch: '\n'}
 	l.line = 1
 	l.readRune()
 	l.prevToken = &token.Token{Type: token.NEWLINE}
@@ -48,6 +50,7 @@ func (l *Lexer) GetState() *State {
 		line:         l.line,
 		tableFlag:    l.tableFlag,
 		prevToken:    l.prevToken,
+		eof: l.eof,
 	}
 }
 //used for debugging
@@ -71,18 +74,43 @@ func (l *Lexer) forceFinish() {
 //   абвгд
 //      ↑
 //     (l.ch='г')
+// --------------------------------------------------
+// Example of negative shift. Current lexer state is:
+//
+//        (readPosition)
+//        ↓
+//   абвгде
+//       ↑
+//      (l.ch='д')
+//
+// Now l.Shift(-2) gets us at:
+//
+//      (readPosition)
+//      ↓
+//   абвгде
+//     ↑
+//     (l.ch='в')
 //
 func (l *Lexer) Shift(bts int) {
-	l.readPosition += bts
+
+	l.eof = false
+	l.readPosition += bts - 1
+	l.position = l.readPosition - 1
+
 	l.readRune()
 }
 
 func (l *Lexer) readRune() {
 	var width int
-	if l.readPosition >= len(l.input) {
+	if l.eof {
+		return
+	}
+	if l.readPosition == len(l.input) {
+		l.eof = true
 		l.ch = 0
+		width = 1
 	} else {
-		l.ch,  width = utf8.DecodeRuneInString(l.input[l.readPosition:])
+		l.ch, width = utf8.DecodeRuneInString(l.input[l.readPosition:])
 	}
 	l.position = l.readPosition
 	l.readPosition += width
@@ -104,6 +132,7 @@ func (l *Lexer) Rewind(pos *State) {
 	l.line = pos.line
 	l.tableFlag = pos.tableFlag
 	l.prevToken = pos.prevToken
+	l.eof = pos.eof
 }
 
 func (l *Lexer) setNewToken(typ token.TokenType, line uint, literal string) *token.Token {
@@ -200,6 +229,10 @@ func (l *Lexer) next() *token.Token {
 	case l.ch == '[' && l.prevToken.Type == token.NEWLINE:
 		//block options "[source, json]"
 		return l.setToken(l.readBlockOptions())
+	case l.ch == '[' && l.prevToken.Type == token.URL:
+		//link name "https://link.ru[click me]"
+		return l.setToken(l.readLinkName())
+
 	case l.ch == ':' && l.prevToken.Type == token.NEWLINE:
 		//ignore asciidoc options ":keyword: text"
 		l.readLine()
@@ -258,10 +291,12 @@ func (l *Lexer) readString() *token.Token {
 		if tok == nil {
 			tok, bts = l.lookupInlineKeyword(w)
 		}
+
 		if tok != nil {
 			if bts < len(w) {
 				//only part of the string is consumed, return the rest to processing
-				l.Shift(bts - len(w) - 1)
+				l.Shift(bts - len(w))
+				//l.Shift(bts)
 			}
 			return tok
 		}
@@ -277,6 +312,8 @@ func (l *Lexer) readString() *token.Token {
 
 }
 
+var hrefRE = regexp.MustCompile(`^((?:https?:\/\/)\S+?)(?:\s|$|\[)`)
+
 func (l *Lexer) lookupInlineKeyword(w string) (*token.Token, int) {
 	switch {
 	case strings.HasPrefix(w,"image:"): //inline image
@@ -287,10 +324,11 @@ func (l *Lexer) lookupInlineKeyword(w string) (*token.Token, int) {
 			return &token.Token{Type: token.ILLEGAL, Literal: w, Line: l.line}, len(w)
 		}
 		return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w[:br+1]}, br + 1
-//	case l.tableFlag && strings.HasPrefix(w, "|"): //column
-//		return &token.Token{Type: token.COLUMN, Line: l.line, Literal: w}, len(w)
-//	case l.tableFlag && w == "a" && l.ch == '|': // 'a|' column
-//		return &token.Token{Type: token.A_COLUMN, Line: l.line, Literal: "a|"}, 2
+	default:
+		matches := hrefRE.FindStringSubmatch(w)
+		if len(matches) == 2 {
+			return &token.Token{Type: token.URL, Literal: matches[1], Line: l.line}, len(matches[1])
+		}
 	}
 	return nil, 0
 }
@@ -320,7 +358,8 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 		return &token.Token{Type: token.HOR_LINE, Line: l.line, Literal: w}, len(w)
 	case w == "//EOF" && l.prevToken.Type == token.NEWLINE:
 		//interrupt parsing here, for debugging sake
-		l.forceFinish()
+		l.ch = 0
+		return &token.Token{Type: token.EOF, Line: l.line, Literal: w}, len(w)
 	case strings.HasPrefix(w,"image:"): //inline image
 		//find closing bracket
 		br := strings.Index(w, "]")
@@ -338,10 +377,9 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 		//admonition
 		matches := admonitionRE.FindStringSubmatch(w)
 		// full string match + 2 capturing groups
-		if len(matches) != 3 {
-			return nil, 0
+		if len(matches) == 3 {
+			return &token.Token{Type: token.ADMONITION, Line: l.line, Literal: matches[1]}, len(matches[1]) + 2 /* name and ": " */
 		}
-		return &token.Token{Type: token.ADMONITION, Line: l.line, Literal: matches[1]}, len(matches[1]) + 2 /* name and ": " */
 
 	}
 	return nil, 0
@@ -379,6 +417,16 @@ func (l *Lexer) readBlockOptions() *token.Token {
 		return &token.Token{Type: token.BLOCK_OPTS, Line: l.line, Literal: opts[: len(opts) - 1]}
 	}
 	return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: l.input[pos:l.position]}
+}
+
+func (l *Lexer) readLinkName() *token.Token {
+	pos := l.position
+	l.readUntil(true, true, ']')
+	if l.ch != ']' {
+		return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: l.input[pos:l.position]}
+	}
+	defer l.readRune() //jump to the text after closing bracket
+	return &token.Token{Type: token.LINK_NAME, Line: l.line, Literal: l.input[pos+1:l.position]}
 }
 
 // reads "bookmark_text]]"

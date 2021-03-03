@@ -261,5 +261,13 @@ func (b *Bookmark) String(indent string) string {
 	return fmt.Sprintf("\n%sbookmark: %s", indent, b.Literal)
 }
 
+type Link struct {
+	Url string
+	Text string
+}
 
+func (l *Link) String(indent string) string {
+	return fmt.Sprintf("\n%slink: (%s,%s)", indent, l.Text, l.Url)
+}
+var _ Block = (*Link)(nil)
 var _ Block = (*Header)(nil)

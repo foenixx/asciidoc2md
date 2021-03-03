@@ -185,7 +185,7 @@ func TestParser(t *testing.T) {
 var case1 = parserTestCase{
 name: "debug",
 input:
-"[[cardmergeoptionsdetails]]**Структура `json` с опциями слияния, описание свойств, их типы и значения по умолчанию:**",
+". https://olle[text] \ntext",
 expected: "",
 }
 
@@ -193,6 +193,6 @@ func TestParser_DebugCase(t *testing.T) {
 	logger := slogtest.Make(t, nil)
 	logger.Info(context.Background(), "log message")
 
-	testACase(t, &cases[0], logger)
+	testACase(t, &case1, logger)
 }
 

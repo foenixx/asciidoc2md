@@ -139,51 +139,28 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 
 	switch {
 	case p.isListMarker():
-		l, err := p.parseList(nil)
-		if err != nil {
-			return nil, err
-		}
-		return l, nil
+		return p.parseList(nil)
 	case p.tok.Type == token.BLOCK_TITLE:
 		t := ast.BlockTitle{Title: p.tok.Literal}
-		if !p.advance() { return nil, fmt.Errorf("parse block title: cannot advance tokens") }
+		if !p.advance() { return nil, ErrCannotAdvance }
 		return &t, nil
 	case p.tok.Type == token.HEADER:
-		h, err := p.parseHeader()
-		if err != nil {
-			return nil, err
-		}
-		return h, nil
-	case p.tok.Type == token.STR || p.tok.Type == token.INLINE_IMAGE: //paragraph may begin with image
+		return p.parseHeader()
+	case p.tok.Type == token.STR || p.tok.Type == token.INLINE_IMAGE || p.tok.Type == token.URL: //paragraph may begin with image
 		//paragraph
-		par, err := p.parseParagraph()
-		return par, err
+		return p.parseParagraph()
 	case p.tok.Type == token.BLOCK_IMAGE:
-		im, err := p.parseImage()
-		if err != nil {
-			return nil, err
-		}
-		im.Options = options
-		return im, nil
+		return p.parseImage(options)
 	case p.tok.Type == token.HOR_LINE:
 		if !p.advance() {
 			return nil, fmt.Errorf("cannot advance after HOR_LINE token")
 		}
 		return &ast.HorLine{}, nil
 	case p.tok.Type == token.ADMONITION:
-		adn, err := p.parseAdmonition()
-		if err != nil {
-			return nil, err
-		}
-		return adn, nil
+		return p.parseAdmonition()
 	case p.tok.Type == token.EX_BLOCK:
 		//example block
-		b, err := p.parseExampleBlock()
-		if err != nil {
-			return nil, err
-		}
-		b.Options = options
-		return b, nil
+		return p.parseExampleBlock(options)
 	case p.tok.Type == token.TABLE:
 		p.log.Info(context.Background(), "before parseTable")
 		t, err := p.parseTable()
@@ -226,7 +203,7 @@ func (p *Parser) isListMarker() bool {
 }
 
 func (p *Parser) isParagraphEnd() bool {
-	return !(p.tok.Type == token.STR || p.tok.Type == token.INLINE_IMAGE)
+	return !(p.tok.Type == token.STR || p.tok.Type == token.INLINE_IMAGE || p.tok.Type == token.URL)
 
 	//return (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) ||
 	//	p.tok.Type == token.EOF ||
@@ -238,9 +215,25 @@ func (p *Parser) isParagraphEnd() bool {
 	//	((p.tok.Type == token.COLUMN || p.tok.Type == token.A_COLUMN || p.tok.Type == token.NEWLINE) && p.tableFlag)
 }
 
-func (p *Parser) parseExampleBlock() (*ast.ExampleBlock, error) {
+func (p *Parser) parseLink() (*ast.Link, error) {
+	link := ast.Link{Url: p.tok.Literal}
+
+	if !p.advance() {
+		return nil, ErrCannotAdvance
+	}
+	if p.tok.Type == token.LINK_NAME {
+		link.Text = p.tok.Literal
+		if !p.advance() {
+			return nil, ErrCannotAdvance
+		}
+	}
+	return &link, nil
+}
+
+func (p *Parser) parseExampleBlock(options string) (*ast.ExampleBlock, error) {
 	//skip delimiter + newline tokens
 	var ex ast.ExampleBlock
+	ex.Options = options
 	p.curBlock = &ex
 	defer func(old ast.Block) { p.curBlock = old }(p.curBlock)
 
@@ -311,6 +304,12 @@ func (p *Parser) parseParagraph() (*ast.Paragraph, error) {
 	var par ast.Paragraph
 	for {
 		switch p.tok.Type {
+		case token.URL:
+			link, err := p.parseLink()
+			if err != nil {
+				return nil, err
+			}
+			par.Add(link)
 		case token.STR:
 			par.Add(&ast.Text{Text: p.tok.Literal})
 		case token.INLINE_IMAGE:
@@ -335,7 +334,7 @@ func (p *Parser) parseParagraph() (*ast.Paragraph, error) {
 var imageRE = regexp.MustCompile(`^image::(.*)\[`)
 var inlineImageRE = regexp.MustCompile(`^image:(.*)\[`)
 
-func (p *Parser) parseImage() (*ast.Image, error) {
+func (p *Parser) parseImage(options string) (*ast.Image, error) {
 	matches := imageRE.FindStringSubmatch(p.tok.Literal)
 	if len(matches) != 2 {
 		return nil, fmt.Errorf("invalid image literal: %v", p.tok.Literal)
@@ -347,7 +346,7 @@ func (p *Parser) parseImage() (*ast.Image, error) {
 	if p.prevTok.Type != token.NEWLINE {
 		return nil, fmt.Errorf("parseImage: no NEWLINE after image")
 	}
-	return &ast.Image{Path: matches[1]}, nil
+	return &ast.Image{Options: options, Path: matches[1]}, nil
 }
 
 func (p *Parser) parseInlineImage() (*ast.InlineImage, error) {

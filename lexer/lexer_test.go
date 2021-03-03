@@ -48,7 +48,22 @@ func TestShifts(t *testing.T) {
 	assert.Equal(t, 'д', l.ch)
 	l.Shift(-2*3) // back to 'д'
 	assert.Equal(t, 'в', l.ch)
+}
 
+func TestShifts2(t *testing.T) {
+	input := `NOTE: Admonition text`
+	l := New(input)
+	l.Shift(6)
+	l.readRune()
+	assert.Equal(t, 'б', l.ch)
+	l.readRune()
+	assert.Equal(t, 'в', l.ch)
+	l.Shift(2) // 'г' takes 2 bytes, 'д' expected
+	assert.Equal(t, 'д', l.ch)
+	l.Shift(-2) // back to 'д'
+	assert.Equal(t, 'д', l.ch)
+	l.Shift(-2*3) // back to 'д'
+	assert.Equal(t, 'в', l.ch)
 }
 
 func TestNextToken(t *testing.T) {
@@ -256,6 +271,18 @@ some text`,
 			{token.EOF, ""},
 		},
 	},
+	{
+		name: "links",
+		input: "text1 https://olle[text2] \ntext3",
+		tests: []lt{
+			{token.STR, "text1 "}, {token.URL, "https://olle"},
+				{token.LINK_NAME, "text2"}, {token.NEWLINE, "\n"},
+			{token.STR, "text3"},
+			{token.EOF, ""},
+		},
+
+
+	},
 
 }
 
@@ -320,16 +347,10 @@ var dcase = lexerTestCase {
 }
 
 func TestDbg(t *testing.T) {
-	input := `* Item 1
-** Item 1.1
-+
-image::image1.png[]
-+
-More text.
-+
-NOTE: Admonition text.
-+
-** Item 1.2`
+	//input2 := `Tessa может быть установлена на сервер Windows или Linux. За подробными требованиями к конфигурации серверов Windows и конфигурации клиентских компьютеров обратитесь к https://mytessa.ru/docs/InstallationGuide/InstallationGuide.html[руководству по установке сервера приложений на Windows]. Для установки сервера приложений на Linux обратитесь к  https://mytessa.ru/docs/LinuxInstallationGuide/LinuxInstallationGuide.html[руководству по установке сервера приложений на Linux].`
+	input := "text https://olle[text] \ntext"
+	//input := "NOTE: Admonition text"
+
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
 	logLexems(t, input, logger)
 	//testACase(t, &lexerTestCase{input: input}, logger)

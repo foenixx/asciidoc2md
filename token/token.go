@@ -42,4 +42,6 @@ const (
 	TABLE		= "TABLE" //table "|===...."
 	COLUMN		= "COLUMN" //column separator "|"
 	A_COLUMN	= "A_COLUMN" //column separator "a|"
+	URL			= "URL"
+	LINK_NAME	= "LINK_NAME"
 )
