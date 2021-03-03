@@ -248,9 +248,28 @@ some text`,
 			{token.EOF, ""},
 		},
 	},
+	{
+		name: "admonition",
+		input: "NOTE: Admonition text",
+		tests: []lt{
+			{token.ADMONITION, "NOTE"},{token.STR, "Admonition text"},
+			{token.EOF, ""},
+		},
+	},
 
 }
 
+func logLexems(t *testing.T, input string, logger slog.Logger) {
+	l := New(input)
+
+	//t.Logf("type: %v, literal: %v", tok2.Type, tok2.Literal)
+	tok := l.NextToken()
+
+	for tok != nil  {
+		logger.Debug(context.Background(), tok.String())
+		tok = l.NextToken()
+	}
+}
 
 func testACase(t *testing.T, tc *lexerTestCase, logger slog.Logger) {
 
@@ -261,20 +280,24 @@ func testACase(t *testing.T, tc *lexerTestCase, logger slog.Logger) {
 	i := 0
 	for tok != nil && i < len(tc.tests) {
 		logger.Debug(context.Background(), tok.String())
-		if !assert.Equal(t, tc.tests[i].expectedType, tok.Type, "invalid type! case: %v, step: %v", tc.name, i + 1) {
+
+		if !assert.Equal(t, tc.tests[i].expectedType, tok.Type, "invalid type! case: %v, step: %v", tc.name, i+1) {
+				return
+			}
+		if !assert.Equal(t, tc.tests[i].expectedLiteral, tok.Literal, "invalid literal! case: %v, step: %v", tc.name, i+1) {
 			return
 		}
-		if !assert.Equal(t, tc.tests[i].expectedLiteral, tok.Literal, "invalid literal! case: %v, step: %v", tc.name, i + 1) {
-			return
-		}
+
 		tok = l.NextToken()
 		i++
 	}
+
 	//no more expected tokens
 	if !assert.Equal(t, i, len(tc.tests)) {
-		return
-	}
+			return
+		}
 	assert.Nil(t, tok)
+
 }
 
 func TestAllCases(t *testing.T) {
@@ -296,9 +319,20 @@ var dcase = lexerTestCase {
 		},
 }
 
-func TestCases1(t *testing.T) {
+func TestDbg(t *testing.T) {
+	input := `* Item 1
+** Item 1.1
++
+image::image1.png[]
++
+More text.
++
+NOTE: Admonition text.
++
+** Item 1.2`
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	testACase(t, &dcase, logger)
+	logLexems(t, input, logger)
+	//testACase(t, &lexerTestCase{input: input}, logger)
 }
 
 func TestFile1(t *testing.T) {

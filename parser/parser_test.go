@@ -33,26 +33,26 @@ NOTE: Admonition text.
 +
 ** Item 1.2`,
 		expected: `
-container block:
+document:
   list begin: (0/false/*)
   item:
     container block:
-      container block:
+      paragraph:
         text: Item 1
       list begin: (1/false/**)
       item:
         container block:
-          container block:
+          paragraph:
             text: Item 1.1
           image: image1.png
-          container block:
+          paragraph:
             text: More text.
           admonition: NOTE
             paragraph:
               text: Admonition text.
       item:
         container block:
-          container block:
+          paragraph:
             text: Item 1.2
       list end
   list end`,
@@ -63,21 +63,21 @@ container block:
 * Item 1.1
 . Item 2`,
 		expected: `
-container block:
+document:
   list begin: (0/true/.)
   item 1:
     container block:
-      container block:
+      paragraph:
         text: Item 1
       list begin: (1/false/*)
       item:
         container block:
-          container block:
+          paragraph:
             text: Item 1.1
       list end
   item 2:
     container block:
-      container block:
+      paragraph:
         text: Item 2
   list end`,
 	},
@@ -92,7 +92,24 @@ container block:
 .title
 paragraph text
 `,
-		expected: ``,
+		expected: `
+document:
+  block title: title text
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: list
+  list end
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: list
+      block title: title
+      paragraph:
+        text: paragraph text
+  list end`,
 	},
 	{
 		name: "example block",
@@ -103,7 +120,12 @@ paragraph text
 any text
 ====
 `,
-		expected: ``,
+		expected: `
+document:
+  block title: title
+  example block:
+    paragraph:
+      text: any text`,
 	},
 }
 
@@ -171,6 +193,6 @@ func TestParser_DebugCase(t *testing.T) {
 	logger := slogtest.Make(t, nil)
 	logger.Info(context.Background(), "log message")
 
-	testACase(t, &case1, logger)
+	testACase(t, &cases[0], logger)
 }
 
