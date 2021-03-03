@@ -30,10 +30,7 @@ type Parser struct{
 func New(input string, logger slog.Logger) *Parser {
 	var p Parser
 	p.log = logger
-	p.l = lexer.New(input, func(tok *token.Token) {
-		//p.log.Debug(context.Background(), "got token", slog.F("token", tok))
-		p.tokens = append(p.tokens, tok)
-	})
+	p.l = lexer.New(input)
 	return &p
 }
 
@@ -85,10 +82,18 @@ func (p *Parser) peekToken(shift int) *token.Token {
 	return p.tokens[p.next- 1 + shift]
 }
 
+func (p *Parser) readAll() {
+	tok := p.l.NextToken()
+	for tok != nil {
+		p.tokens = append(p.tokens, tok)
+		tok = p.l.NextToken()
+	}
+}
 
 func (p *Parser) Parse() (*ast.ContainerBlock, error) {
 	var doc ast.ContainerBlock
-	p.l.ReadAll()
+
+	p.readAll()
 
 forLoop:
 	for p.advance() {
