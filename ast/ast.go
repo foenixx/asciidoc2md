@@ -146,6 +146,18 @@ func (l *List) LastItem() *ContainerBlock {
 type SyntaxBlock struct {
 	Options string
 	Literal string
+	Lang string
+}
+
+func (sb *SyntaxBlock) SetOptions(options string) {
+	switch {
+	case strings.Contains(options, "xml"):
+		sb.Lang = "json"
+	case strings.Contains(options, "c#") || strings.Contains(options, "csharp"):
+		sb.Lang = "c#"
+	case strings.Contains(options, "sh") || strings.Contains(options, "shell"):
+		sb.Lang = "shell"
+	}
 }
 
 func (sb *SyntaxBlock) String(indent string) string {
@@ -227,6 +239,10 @@ func (t *Table) String(indent string) string {
 	if t.IsSimple() {
 		str.WriteString(" (simple)")
 	}
+	if t.IsDefList() {
+		str.WriteString(" (not-so-simple)")
+	}
+
 	for _, cell := range t.Cells {
 		if cell != nil {
 			str.WriteString(fmt.Sprintf("\n%scell:", indent))
@@ -243,10 +259,35 @@ func (t *Table) String(indent string) string {
 //  IsSimple checks if every cell is a single text paragraph.
 func (t *Table) IsSimple() bool {
 	for _, c := range t.Cells {
-		if len(c.Blocks) != 1 {
+		switch len(c.Blocks) {
+		case 0:
+			continue
+		case 1:
+			if _, ok := c.Blocks[0].(*Paragraph); !ok {
+				return false
+			}
+		default:
 			return false
 		}
-		if _, ok := c.Blocks[0].(*Paragraph); !ok {
+	}
+	return true
+}
+
+//  IsDefList checks if every cell in the first column is a single text paragraph.
+func (t *Table) IsDefList() bool {
+	for i, c := range t.Cells {
+		if i % t.Columns > 0 {
+			//only first column is taken into consideration
+			continue
+		}
+		switch len(c.Blocks) {
+		case 0:
+			continue
+		case 1:
+			if _, ok := c.Blocks[0].(*Paragraph); !ok {
+				return false
+			}
+		default:
 			return false
 		}
 	}

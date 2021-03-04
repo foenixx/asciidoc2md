@@ -3,7 +3,6 @@ package markdown
 import (
 	"asciidoc2md/ast"
 	"cdr.dev/slog"
-	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -13,50 +12,21 @@ type Converter struct {
 	imageFolder string
 	curIndent   string //current indentation level: 2 spaces, 4 spaces, ...
 	log         slog.Logger
+	writerFunc  func(*ast.Header) io.Writer
+	writer      io.Writer
 }
 
-func New(imFolder string, logger slog.Logger) *Converter {
-	return &Converter{imageFolder: imFolder, log: logger}
+func New(imFolder string, logger slog.Logger, writerFunc func(*ast.Header) io.Writer) *Converter {
+	return &Converter{imageFolder: imFolder, log: logger, writerFunc: writerFunc}
 }
 
 func (c *Converter) RenderMarkdown(doc *ast.Document, w io.Writer) {
-	for i, blok := range doc.Blocks {
-		var data string
-		//write extra newline before every block except the first one
-		if i > 0 {
-			w.Write([]byte("\n"))
-		}
-		switch blok.(type) {
-		case *ast.List:
-			data = c.ConvertList(blok.(*ast.List)) //+ "\n\n"
-			c.log.Debug(context.Background(), data)
-		case *ast.Paragraph:
-			data = c.ConvertParagraph(blok.(*ast.Paragraph)) + "\n"
-		case *ast.BlockTitle:
-			data = c.ConvertBlockTitle(blok.(*ast.BlockTitle))
-		case *ast.Header:
-			data = c.ConvertHeader(blok.(*ast.Header))
-		case *ast.ContainerBlock:
-			data = c.ConvertContainerBlock(blok.(*ast.ContainerBlock), true)
-		case *ast.Image:
-			data = c.ConvertImage(blok.(*ast.Image))
-		case *ast.InlineImage:
-			data = c.ConvertInlineImage(blok.(*ast.InlineImage))
-		case *ast.HorLine:
-			data = c.ConvertHorLine(blok.(*ast.HorLine))
-		case *ast.Admonition:
-			data = c.ConvertAdmonition(blok.(*ast.Admonition)) + "\n\n"
-		case *ast.ExampleBlock:
-			data = c.ConvertExampleBlock(blok.(*ast.ExampleBlock))
-		case *ast.Table:
-			data = c.ConvertTable(blok.(*ast.Table))
-		}
-		w.Write([]byte(data))
-	}
+	c.writer = w
+	c.WriteContainerBlock(&doc.ContainerBlock, false)
 }
 
-func (c *Converter) ConvertList(l *ast.List) string {
-	var output strings.Builder
+func (c *Converter) WriteList(l *ast.List) {
+	//var output strings.Builder
 	var m = "* "
 	if l.Numbered {
 		m = "1. "
@@ -65,13 +35,12 @@ func (c *Converter) ConvertList(l *ast.List) string {
 
 	for _, i := range l.Items {
 		c.curIndent = indent + strings.Repeat(" ", len(m))
-		output.WriteString(indent + m)
-		str := c.ConvertContainerBlock(i, false)
+		c.WriteString("\n" + indent + m)
+		c.WriteContainerBlock(i, false)
 		//c.log.Debug(context.Background(), str)
-		output.WriteString(str)
+		//c.writer.Write([]byte(str))
 	}
 	c.curIndent = indent
-	return output.String()
 }
 
 // ConvertComplexTable converts complex table into a list.
@@ -83,47 +52,72 @@ func (c *Converter) ConvertList(l *ast.List) string {
 //    _col3 header:_
 //    col3 text
 //
-func (c *Converter)	ConvertComplexTable(t *ast.Table) string {
+func (c *Converter)	ConvertComplexTable(t *ast.Table) *ast.List {
 	var list ast.List
 	list.Numbered = false
 	list.Marker = "*"
 	header := []string{}
+	isDefList := t.IsDefList()
 
-	if !t.Header {
-		return "header!!!"
-	}
+
+	//if !t.Header {
+	//	return "header!!!"
+	//}
 	var par *ast.Paragraph
 	var ok bool
 	for _, cell := range t.Cells[:t.Columns] {
+		if len(cell.Blocks) == 0 {
+			//empty header
+			header = append(header, "")
+			continue
+		}
 		if par, ok = cell.Blocks[0].(*ast.Paragraph); !ok {
 			header = append(header, "HEADER IS NOT A PARAGRAPH!")
 		} else {
 			header = append(header, c.ConvertParagraph(par))
 		}
 	}
+	i := t.Columns
 	for row := 0; row < (len(t.Cells) - t.Columns) / t.Columns; row++ {
 		//every row
 		rowCont := &ast.ContainerBlock{}
-		for col := 0; col < t.Columns; col++ {
-			//every column
-			rowCont.Add(ast.NewParagraphFromStr(fmt.Sprintf("_%v_:", header[col])))
-			rowCont.Append(t.Cells[t.Columns * (row +1) + col].Blocks...)
 
+		for col := 0; col < t.Columns; col++ {
+			switch {
+			case (col == 0 && isDefList) || header[col] == "":
+				//first column text becomes a header
+				h := strings.TrimSpace(c.ConvertParagraph(t.Cells[i].Blocks[0].(*ast.Paragraph)))
+				if h[0] != '`' {
+					h = "`" + h + "`"
+				}
+				rowCont.Add(ast.NewParagraphFromStr(h))
+			case col == 1 && isDefList:
+				//second column goes without a header
+				rowCont.Append(t.Cells[i].Blocks...)
+			default:
+				if header[col] != "" {
+					rowCont.Add(ast.NewParagraphFromStr(fmt.Sprintf("%v:", strings.TrimSpace(header[col]))))
+				}
+				rowCont.Append(t.Cells[t.Columns*(row+1)+col].Blocks...)
+			}
+			i++
 		}
 		list.AddItem(rowCont)
 	}
-	return c.ConvertList(&list)
+	//c.log.Debug(context.Background(), list.String(""))
+	return &list
 }
 
-func (c *Converter) ConvertTable(t *ast.Table) string {
-	var output strings.Builder
+func (c *Converter) WriteTable(t *ast.Table) {
+	//var output strings.Builder
 	//indent := c.curIndent
 
 	if !t.IsSimple() {
-		return c.ConvertComplexTable(t)
+		c.WriteList(c.ConvertComplexTable(t))
+		return
 	}
 	if t.Columns == 0 {
-		return "ZERO COLUMNS"
+		//return "ZERO COLUMNS"
 	}
 	t.Header = true
 	row := 0
@@ -131,116 +125,177 @@ func (c *Converter) ConvertTable(t *ast.Table) string {
 		 if i % t.Columns == 0 {
 		 	//new row
 		 	row++
-		 	output.WriteString(c.curIndent + "| ")
+		 	c.WriteString(c.curIndent + "| ")
 		 }
 		 if t.Header && row == 2 {
 		 	//let's write header delimiter
 		 	t.Header = false //TODO: remove dirty hack
-		 	output.WriteString(strings.Repeat(" --- |", t.Columns) + "\n" + c.curIndent + "| ")
+			 c.WriteString(strings.Repeat(" --- |", t.Columns) + "\n" + c.curIndent + "| ")
 		 }
-		output.WriteString(c.ConvertParagraph(cell.Blocks[0].(*ast.Paragraph)) + " |")
+		 if len(cell.Blocks) == 0 {
+			 c.WriteString(" |")
+		 } else {
+			 c.WriteParagraph(cell.Blocks[0].(*ast.Paragraph), c.writer)
+			 c.WriteString(" |")
+		 }
 		if i % t.Columns == t.Columns - 1 {
 			//last cell of the current column
-			output.WriteString("\n")
+			c.WriteString("\n")
 		}
 	}
-	//c.curIndent = indent
-	return output.String()
 }
 
-func (c *Converter) ConvertBlockTitle(h *ast.BlockTitle) string {
-	return fmt.Sprintf("_%v_\n", h.Title)
+func (c *Converter) WriteBlockTitle(h *ast.BlockTitle, w io.Writer) {
+	w.Write([]byte(fmt.Sprintf("_%v_\n", h.Title)))
 }
 
-func (c *Converter) ConvertHeader(h *ast.Header) string {
-	return strings.Repeat("#", h.Level) + " " + h.Text + "\n"
+func (c *Converter) WriteHeader(h *ast.Header, w io.Writer) {
+	w.Write([]byte(strings.Repeat("#", h.Level) + " " + h.Text + "\n"))
 }
 
-//ConvertAdmonition will work only if "Admonition" markdown extension is enabled.
+//WriteAdmonition will work only if "Admonition" markdown extension is enabled.
 //For details see https://squidfunk.github.io/mkdocs-material/reference/admonitions/.
-func (c *Converter) ConvertAdmonition(a *ast.Admonition) string {
-	//w == "NOTE:" || w == "TIP:" || w == "IMPORTANT:" || w == "WARNING:" || w == "CAUTION:":
-	return fmt.Sprintf("!!! note\n%v    %v\n", c.curIndent, c.ConvertParagraph(a.Content))
+func (c *Converter) WriteAdmonition(a *ast.Admonition, w io.Writer) {
+	//writer == "NOTE:" || writer == "TIP:" || writer == "IMPORTANT:" || writer == "WARNING:" || writer == "CAUTION:":
+	var kind string
+	if a.Kind == "CAUTION" {
+		kind = "danger"
+	} else {
+		kind = strings.ToLower(a.Kind)
+	}
+	w.Write([]byte(fmt.Sprintf("!!! %s\n%v    ", kind, c.curIndent)))
+	c.WriteParagraph(a.Content, w)
+	w.Write([]byte("\n"))
 }
 
 func (c *Converter) ConvertParagraph(p *ast.Paragraph) string {
-	var output strings.Builder
+	var res strings.Builder
+	c.WriteParagraph(p, &res)
+	return res.String()
+}
+
+func (c *Converter) WriteParagraph(p *ast.Paragraph, w io.Writer) {
 
 	for _, b := range p.Blocks {
 		switch b.(type) {
 		case *ast.Text:
-			output.WriteString(b.(*ast.Text).Text)
+			w.Write([]byte(b.(*ast.Text).Text))
 		case *ast.InlineImage:
-			output.WriteString(c.ConvertInlineImage(b.(*ast.InlineImage)))
+			c.WriteInlineImage(b.(*ast.InlineImage), w)
 		case *ast.Link:
-			output.WriteString(c.ConvertLink(b.(*ast.Link)))
+			c.WriteLink(b.(*ast.Link),w)
 		}
-
 	}
-	//output.WriteString("\n")
-	//return fmt.Sprintf("\n%v%v\n", c.curIndent, output.String())
-	return output.String()
 }
 
-func (c *Converter) ConvertExampleBlock(ex *ast.ExampleBlock) string {
+func (c *Converter) WriteExampleBlock(ex *ast.ExampleBlock) {
 	ind := c.curIndent
 	c.curIndent += "    "
-	s := "!!! example\n" + c.ConvertContainerBlock(&ex.ContainerBlock, true)
+	c.writer.Write([]byte("!!! example\n"))
+	c.WriteContainerBlock(&ex.ContainerBlock, true)
 	c.curIndent = ind
-	return s
 }
 
-func (c *Converter) ConvertContainerBlock(p *ast.ContainerBlock, firstLineIndent bool) string {
-	var output strings.Builder
+/*
+	case *ast.Header:
+		h := blok.(*ast.Header)
+		if c.writerFunc != nil {
+			newWriter := c.writerFunc(h)
+			if newWriter != nil {
+				c.writer = newWriter
+			}
+		}
+		data = c.ConvertHeader(h)
+	case *ast.ContainerBlock:
+		data = c.WriteContainerBlock(blok.(*ast.ContainerBlock), true)
+	case *ast.HorLine:
+		data = c.ConvertHorLine(blok.(*ast.HorLine))
+	case *ast.Table:
+		data = c.WriteTable(blok.(*ast.Table))
+	}
+*/
+
+func (c *Converter) WriteString(s string) error {
+	_, err := c.writer.Write([]byte(s))
+	return err
+}
+
+func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent bool)  {
+	//var output strings.Builder
 
 	for i, b := range p.Blocks {
+
 		_, isList := b.(*ast.List)
-		//switch b.(type) {
-		////case *ast.List:
-		//	//do nothing
-		//default:
-			if i > 0 {
-				//write extra newline before every paragraph, except the first one
-				output.WriteString("\n")
-			}
-			if !isList && ((i == 0 && firstLineIndent) || i > 0) {
-				output.WriteString(c.curIndent)
-			}
-		//}
+		if i > 0 {
+			//write extra newline before every paragraph, except the first one
+			c.WriteString("\n")
+		}
+		if !isList && ((i == 0 && firstLineIndent) || i > 0) {
+			c.WriteString(c.curIndent)
+		}
+
 		switch b.(type) {
-//		case *ast.Text:
-//			output.WriteString(b.(*ast.Text).Text)
+		case *ast.Header:
+			h := b.(*ast.Header)
+			if c.writerFunc != nil {
+				newWriter := c.writerFunc(h)
+				if newWriter != nil {
+					c.writer = newWriter
+				}
+			}
+			c.WriteHeader(h, c.writer)
+		case *ast.ContainerBlock:
+			c.WriteContainerBlock(b.(*ast.ContainerBlock),firstLineIndent)
+		case *ast.HorLine:
+			c.WriteHorLine(b.(*ast.HorLine), c.writer)
+		case *ast.Table:
+			c.WriteTable(b.(*ast.Table))
 		case *ast.Image:
-			output.WriteString(c.ConvertImage(b.(*ast.Image)))
+			c.WriteImage(b.(*ast.Image), c.writer)
 		case *ast.Paragraph:
-			output.WriteString(c.ConvertParagraph(b.(*ast.Paragraph)) + "\n")
-//		case *ast.ContainerBlock:
-//			output.WriteString(c.ConvertContainerBlock(b.(*ast.ContainerBlock)))
+			c.WriteParagraph(b.(*ast.Paragraph), c.writer)
+			c.WriteString("\n")
 		case *ast.List:
-			output.WriteString(c.ConvertList(b.(*ast.List)))
+			c.WriteList(b.(*ast.List))
 		case *ast.Admonition:
-			output.WriteString(c.ConvertAdmonition(b.(*ast.Admonition)))
+			c.WriteAdmonition(b.(*ast.Admonition), c.writer)
 		case *ast.BlockTitle:
-			output.WriteString(c.ConvertBlockTitle(b.(*ast.BlockTitle)))
+			c.WriteBlockTitle(b.(*ast.BlockTitle), c.writer)
 		case *ast.ExampleBlock:
-			output.WriteString(c.ConvertExampleBlock(b.(*ast.ExampleBlock)))
+			c.WriteExampleBlock(b.(*ast.ExampleBlock))
+		case *ast.SyntaxBlock:
+			c.WriteSyntaxBlock(b.(*ast.SyntaxBlock))
+		case *ast.Bookmark:
+			c.WriteString("TODO: BOOKMARK\n")
+
+		default:
+			panic("invalid ast block\n" + b.String(""))
 		}
 	}
-	return output.String()
 }
 
-func (c *Converter) ConvertImage(p *ast.Image) string {
-	return fmt.Sprintf("![](%v)\n", c.imageFolder+ p.Path)
+func (c *Converter) WriteImage(p *ast.Image, w io.Writer) {
+	w.Write([]byte(fmt.Sprintf("![](%v)\n", c.imageFolder+ strings.ReplaceAll(p.Path, `\`, `/`))))
 }
 
-func (c *Converter) ConvertInlineImage(p *ast.InlineImage) string {
-	return "![](" + p.Path + ")"
+func (c *Converter) WriteInlineImage(p *ast.InlineImage, w io.Writer) {
+	w.Write([]byte("![](" + c.imageFolder+ strings.ReplaceAll(p.Path, `\`, `/`) + ")"))
 }
 
-func (c *Converter) ConvertHorLine(p *ast.HorLine) string {
-	return "***\n"
+func (c *Converter) WriteHorLine(p *ast.HorLine, w io.Writer) {
+	w.Write([]byte("***\n"))
 }
 
-func (c *Converter) ConvertLink(l *ast.Link) string {
-	return fmt.Sprintf("[%s](%s)", l.Text, l.Url)
+func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
+	w.Write([]byte(fmt.Sprintf("[%s](%s)", l.Text, l.Url)))
+}
+
+func (c *Converter) WriteSyntaxBlock(sb *ast.SyntaxBlock) {
+	str := sb.Literal
+	if sb.Literal[len(sb.Literal)-1:] == "\n" {
+		//trim last newline
+		str = sb.Literal[:len(sb.Literal)-1]
+	}
+	str = strings.ReplaceAll(str,"\n", "\n" + c.curIndent + "   ")
+	c.WriteString(fmt.Sprintf("```%s\n%s   %s\n%s```\n", sb.Lang, c.curIndent, str, c.curIndent))
 }
