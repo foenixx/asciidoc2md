@@ -90,15 +90,22 @@ func TestAll(t *testing.T) {
 
 func Test1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	testAFile(t, "../data/test.adoc", "../test.md", logger)
+	testAFile(t, "../data/installation.adoc", "../test.md", logger)
 }
 
 func TestConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 	input :=
 `
-text https://olle[text] 
-text
+Строка подключения.
+[[conn-string]]
+.Для подключения к SQL Server с использованием Windows аутентификации:
+[source, xml, subs="macros+", role=small]
+----
+  "ConnectionStrings": {
+        "default": "Server=pass:quotes[#.\\SQLEXPRESS#]; Database=pass:quotes[#tessa#]; Integrated Security=true; Connect Timeout=200; pooling='true'; Max Pool Size=200; MultipleActiveResultSets=true;"
+    }
+----
 `
 	p := parser.New(input, logger)
 	doc, err := p.Parse()

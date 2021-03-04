@@ -118,6 +118,8 @@ document:
 [options]
 ====
 any text
+* li1
+* li2
 ====
 `,
 		expected: `
@@ -125,7 +127,17 @@ document:
   block title: title
   example block:
     paragraph:
-      text: any text`,
+      text: any text
+    list begin: (0/false/*)
+    item:
+      container block:
+        paragraph:
+          text: li1
+    item:
+      container block:
+        paragraph:
+          text: li2
+    list end`,
 	},
 }
 
@@ -185,7 +197,10 @@ func TestParser(t *testing.T) {
 var case1 = parserTestCase{
 name: "debug",
 input:
-". https://olle[text] \ntext",
+`
+TIP: Если в контроле не задан формат отображения и не найдено ни одного текстового поля в комплексной колонке, то контрол отображает значение
+“[EMPTY]”. Если есть поле для отображения, но представление не предоставило необходимых данных, то в контроле отображается “[NULL]”.
+`,
 expected: "",
 }
 

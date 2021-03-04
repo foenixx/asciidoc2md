@@ -348,7 +348,17 @@ var dcase = lexerTestCase {
 
 func TestDbg(t *testing.T) {
 	//input2 := `Tessa может быть установлена на сервер Windows или Linux. За подробными требованиями к конфигурации серверов Windows и конфигурации клиентских компьютеров обратитесь к https://mytessa.ru/docs/InstallationGuide/InstallationGuide.html[руководству по установке сервера приложений на Windows]. Для установки сервера приложений на Linux обратитесь к  https://mytessa.ru/docs/LinuxInstallationGuide/LinuxInstallationGuide.html[руководству по установке сервера приложений на Linux].`
-	input := "text https://olle[text] \ntext"
+	input := `
+Строка подключения.
+[[conn-string]]
+.Для подключения к SQL Server с использованием Windows аутентификации:
+[source, xml, subs="macros+", role=small]
+----
+  "ConnectionStrings": {
+        "default": "Server=pass:quotes[#.\\SQLEXPRESS#]; Database=pass:quotes[#tessa#]; Integrated Security=true; Connect Timeout=200; pooling='true'; Max Pool Size=200; MultipleActiveResultSets=true;"
+    }
+----
+`
 	//input := "NOTE: Admonition text"
 
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)

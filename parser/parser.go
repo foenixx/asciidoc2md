@@ -84,8 +84,14 @@ func (p *Parser) peekToken(shift int) *token.Token {
 
 func (p *Parser) readAll() {
 	tok := p.l.NextToken()
+	prev := tok
 	for tok != nil {
+		if tok.Type == token.EOF && prev.Type != token.NEWLINE {
+			//add newline at the end of file to simplify parsing
+			p.tokens = append(p.tokens, &token.Token{token.NEWLINE,"\n",tok.Line})
+		}
 		p.tokens = append(p.tokens, tok)
+		prev = tok
 		tok = p.l.NextToken()
 	}
 }
@@ -162,17 +168,10 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		//example block
 		return p.parseExampleBlock(options)
 	case p.tok.Type == token.TABLE:
-		p.log.Info(context.Background(), "before parseTable")
-		t, err := p.parseTable()
-		p.log.Info(context.Background(), "after parseTable", slog.F("curtoken", p.tok))
-		if err != nil {
-			return nil, err
-		}
-		t.SetOptions(options)
-
-		return t, nil
+		return p.parseTable(options)
 	case p.tok.Type == token.SYNTAX_BLOCK:
-		sb := &ast.SyntaxBlock{Options: options, Literal: p.tok.Literal}
+		sb := &ast.SyntaxBlock{Literal: p.tok.Literal}
+		sb.SetOptions(options)
 		if !p.advance() {
 			return nil, ErrCannotAdvance
 		}
@@ -202,8 +201,17 @@ func (p *Parser) isListMarker() bool {
 	return p.tok.Type == token.NL_MARK || p.tok.Type == token.L_MARK
 }
 
+func (p *Parser) isParagraph(tok *token.Token) bool {
+	return tok.Type == token.STR || tok.Type == token.INLINE_IMAGE || tok.Type == token.URL
+}
+
 func (p *Parser) isParagraphEnd() bool {
-	return !(p.tok.Type == token.STR || p.tok.Type == token.INLINE_IMAGE || p.tok.Type == token.URL)
+	if p.tok.Type == token.NEWLINE && p.isParagraph(p.peekToken(1)) {
+		//ignore single NEWLINE
+		return false
+	}
+
+	return !p.isParagraph(p.tok)
 
 	//return (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) ||
 	//	p.tok.Type == token.EOF ||
@@ -331,7 +339,7 @@ func (p *Parser) parseParagraph() (*ast.Paragraph, error) {
 	return &par, nil
 }
 
-var imageRE = regexp.MustCompile(`^image::(.*)\[`)
+var imageRE = regexp.MustCompile(`^image::?(.*)\[`)
 var inlineImageRE = regexp.MustCompile(`^image:(.*)\[`)
 
 func (p *Parser) parseImage(options string) (*ast.Image, error) {
@@ -379,6 +387,14 @@ l1:
 			}
 
 		default:
+			//are we inside example block?
+			if p.curBlock != nil && p.tok.Type == token.EX_BLOCK {
+				_, yes := p.curBlock.(*ast.ExampleBlock)
+				if yes {
+					break l1
+				}
+			}
+
 			b, err := p.parseBlock()
 			if err != nil {
 				return nil, err
@@ -445,7 +461,8 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 
 	for {
 		switch {
-		case (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) || p.tok.Type == token.EOF:
+		case (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) || p.tok.Type == token.EOF ||
+				p.tok.Type == token.EX_BLOCK:
 			//end of the list
 			//p.nestedListLevel = 0
 			return &list, nil
@@ -478,9 +495,10 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 	//return &list, nil
 }
 
-func (p *Parser) parseTable() (*ast.Table, error) {
+func (p *Parser) parseTable(options string) (*ast.Table, error) {
 	//skip delimiter + newline tokens
 	var t ast.Table
+	t.SetOptions(options)
 
 	p.tableFlag = true //when tableFlag == true, paragraph could end at "|" symbol
 	defer func() { p.tableFlag = false } ()

@@ -350,7 +350,7 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 	case strings.HasPrefix(w, "----"): //block delimiter
 		// actual literal could have trailing spaces, let's don't bother trimming them
 		return &token.Token{Type: token.BLOCK_DELIM, Line: l.line, Literal: "----"}, len(w)
-	case strings.HasPrefix(w, "image::"): //block image
+	case strings.HasPrefix(w, "image:"): //block image
 		return &token.Token{Type: token.BLOCK_IMAGE, Line: l.line, Literal: w}, len(w)
 	//case strings.HasPrefix(w,"image:"): //inline image
 	//	return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w}
@@ -389,10 +389,11 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 func (l *Lexer) readSyntaxBlock(delim *token.Token) string {
 	l.readRune() //skip newline
 	pos := l.position
+	var line string
 	var to int
 	for {
 		to = l.position
-		line := l.readLine()
+		line = l.readLine()
 		// read without tokenizing till the same delimiter or ...
 		if strings.TrimSpace(line) == delim.Literal {
 			break
@@ -416,7 +417,7 @@ func (l *Lexer) readBlockOptions() *token.Token {
 		// return options without brackets
 		return &token.Token{Type: token.BLOCK_OPTS, Line: l.line, Literal: opts[: len(opts) - 1]}
 	}
-	return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: l.input[pos:l.position]}
+	return &token.Token{Type: token.STR, Line: l.line, Literal: l.input[pos:l.position]}
 }
 
 func (l *Lexer) readLinkName() *token.Token {
@@ -514,6 +515,7 @@ func (l *Lexer) readLine() string {
 	for ! (isNewLine(l.ch) || l.ch == 0) {
 		l.readRune()
 	}
+	//l.readNewLine()
 	return l.input[pos:l.position]
 }
 
