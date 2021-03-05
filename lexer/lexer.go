@@ -187,6 +187,8 @@ func (l *Lexer) NextToken() *token.Token {
 func (l *Lexer) next() *token.Token {
 
 	switch  {
+	case l.ch == '<' && l.peekRune() == '<':
+		return l.setToken(l.readInternalLink())
 	case l.ch == '.' && l.prevToken.Type == token.NEWLINE && !utils.RuneIs(l.peekRune(), '.','*',' ','\t'):
 		//block title ".title"
 		l.readRune() // move to a next char
@@ -418,6 +420,18 @@ func (l *Lexer) readBlockOptions() *token.Token {
 		return &token.Token{Type: token.BLOCK_OPTS, Line: l.line, Literal: opts[: len(opts) - 1]}
 	}
 	return &token.Token{Type: token.STR, Line: l.line, Literal: l.input[pos:l.position]}
+}
+
+func (l *Lexer) readInternalLink() *token.Token {
+	pos := l.position
+	l.readUntil(true, true, '>')
+	l.readRune()
+
+	if l.ch != '>' {
+		return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: l.input[pos:l.position]}
+	}
+	defer l.readRune() //jump to the text after link
+	return &token.Token{Type: token.INT_LINK, Line: l.line, Literal: l.input[pos+2:l.position-1]}
 }
 
 func (l *Lexer) readLinkName() *token.Token {

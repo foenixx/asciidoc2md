@@ -63,7 +63,11 @@ func main() {
 		}
 		w := bufio.NewWriter(fo)
 		conv := markdown.New(imagePath, log, func(header *ast.Header) io.Writer {
-			if header.Level == 2 {
+			header.Level--
+			if header.Level == 0 { //former 1 level
+				header.Text = "<skip>"
+			}
+			if header.Level == 1 { //former 2 level
 				i++
 				fileName = fmt.Sprintf("%s_%v.md", outputSlug, i)
 				//log.Info(ctx, "header", slog.F("text", header.Text))
