@@ -151,8 +151,8 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		if !p.advance() { return nil, ErrCannotAdvance }
 		return &t, nil
 	case p.tok.Type == token.HEADER:
-		return p.parseHeader()
-	case p.tok.Type == token.STR || p.tok.Type == token.INLINE_IMAGE || p.tok.Type == token.URL: //paragraph may begin with image
+		return p.parseHeader("")
+	case p.isParagraph(p.tok):
 		//paragraph
 		return p.parseParagraph()
 	case p.tok.Type == token.BLOCK_IMAGE:
@@ -177,11 +177,7 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		}
 		return sb, nil
 	case p.tok.Type == token.BOOKMARK:
-		b := &ast.Bookmark{Literal: p.tok.Literal}
-		if !p.advance() {
-			return nil, ErrCannotAdvance
-		}
-		return b, nil
+		return p.parseBookmark()
 	case p.tok.Type == token.INDENT || p.tok.Type == token.CONCAT_PAR:
 		//skip it for now
 		if !p.advance() {
@@ -202,7 +198,7 @@ func (p *Parser) isListMarker() bool {
 }
 
 func (p *Parser) isParagraph(tok *token.Token) bool {
-	return tok.Type == token.STR || tok.Type == token.INLINE_IMAGE || tok.Type == token.URL
+	return tok.Type == token.STR || tok.Type == token.INLINE_IMAGE || tok.Type == token.URL || tok.Type == token.INT_LINK
 }
 
 func (p *Parser) isParagraphEnd() bool {
@@ -221,6 +217,39 @@ func (p *Parser) isParagraphEnd() bool {
 	//	p.tok.Type == token.QUOTE_BLOCK ||
 	//	//in table mode newline completes the paragraph (in simple mode)
 	//	((p.tok.Type == token.COLUMN || p.tok.Type == token.A_COLUMN || p.tok.Type == token.NEWLINE) && p.tableFlag)
+}
+
+func (p *Parser) parseBookmark() (ast.Block, error) {
+	b := &ast.Bookmark{Literal: p.tok.Literal}
+	//check if it is an Id of a header
+	if !p.advance() {
+		return nil, ErrCannotAdvance
+	}
+	if p.tok.Type == token.NEWLINE {
+		if !p.advance() {
+			return nil, ErrCannotAdvance
+		}
+	}
+	if p.tok.Type == token.HEADER {
+		h, err := p.parseHeader(b.Literal)
+		return h, err
+	}
+	return b, nil
+
+}
+
+func (p *Parser) parseInternalLink() (*ast.Link, error) {
+	link := ast.Link{Internal: true}
+
+	parts := strings.Split(p.tok.Literal, ",")
+	if len(parts) > 2 || len(parts) == 0 {
+		return nil, fmt.Errorf("invalid internal link: %v", p.tok.Literal)
+	}
+	link.Url = parts[0]
+	if len(parts) == 2 {
+		link.Text = parts[1]
+	}
+	return &link, nil
 }
 
 func (p *Parser) parseLink() (*ast.Link, error) {
@@ -288,8 +317,9 @@ func (p *Parser) parseAdmonition() (*ast.Admonition, error) {
 	return &admonition, nil
 }
 
-func (p *Parser) parseHeader() (*ast.Header, error) {
+func (p *Parser) parseHeader(id string) (*ast.Header, error) {
 	var h ast.Header
+	h.Id = id
 	h.Level = len(p.tok.Literal)
 	if !p.advance() {
 		return nil, fmt.Errorf("parseHeader: cannot advance")
@@ -326,6 +356,12 @@ func (p *Parser) parseParagraph() (*ast.Paragraph, error) {
 				return nil, err
 			}
 			par.Add(im)
+		case token.INT_LINK:
+			link, err := p.parseInternalLink()
+			if err != nil {
+				return nil, err
+			}
+			par.Add(link)
 		}
 		// EOF reached
 		if !p.advance() {

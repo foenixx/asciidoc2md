@@ -72,10 +72,15 @@ func (ex *ExampleBlock) String(indent string) string {
 type Header struct {
 	Level int
 	Text string
+	Id string
 }
 
 func (h *Header) String(indent string) string {
-	return fmt.Sprintf("\n%sheader: %v, %v", indent, h.Level, h.Text)
+	var id string
+	if h.Id != "" {
+		id = " [" + h.Id + "]"
+	}
+	return fmt.Sprintf("\n%sheader: %v, %v%v", indent, h.Level, h.Text, id)
 }
 
 type BlockTitle struct {
@@ -147,6 +152,7 @@ type SyntaxBlock struct {
 	Options string
 	Literal string
 	Lang string
+	InlineHighlight bool
 }
 
 func (sb *SyntaxBlock) SetOptions(options string) {
@@ -157,6 +163,10 @@ func (sb *SyntaxBlock) SetOptions(options string) {
 		sb.Lang = "c#"
 	case strings.Contains(options, "sh") || strings.Contains(options, "shell"):
 		sb.Lang = "shell"
+	}
+	if strings.Contains(options, "macros+") {
+		// there are `pass:quotes[#some_text#]` highlighting
+		sb.InlineHighlight = true
 	}
 }
 
@@ -305,10 +315,11 @@ func (b *Bookmark) String(indent string) string {
 type Link struct {
 	Url string
 	Text string
+	Internal bool
 }
 
 func (l *Link) String(indent string) string {
-	return fmt.Sprintf("\n%slink: (%s,%s)", indent, l.Text, l.Url)
+	return fmt.Sprintf("\n%slink: (%v,%s,%s)", indent, l.Internal, l.Text, l.Url)
 }
 var _ Block = (*Link)(nil)
 var _ Block = (*Header)(nil)

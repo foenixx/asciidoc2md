@@ -8,20 +8,25 @@ import (
 	"strings"
 )
 
+type GetWriterFunc func(*ast.Header) (io.Writer, string)
+
 type Converter struct {
 	imageFolder string
 	curIndent   string //current indentation level: 2 spaces, 4 spaces, ...
 	log         slog.Logger
-	writerFunc  func(*ast.Header) io.Writer
+	writerFunc  GetWriterFunc
 	writer      io.Writer
+	writerFile  string
+	idMap	map[string]string //header id to file mapping
 }
 
-func New(imFolder string, logger slog.Logger, writerFunc func(*ast.Header) io.Writer) *Converter {
+func New(imFolder string, logger slog.Logger, writerFunc GetWriterFunc) *Converter {
 	return &Converter{imageFolder: imFolder, log: logger, writerFunc: writerFunc}
 }
 
-func (c *Converter) RenderMarkdown(doc *ast.Document, w io.Writer) {
+func (c *Converter) RenderMarkdown(doc *ast.Document, w io.Writer, file string) {
 	c.writer = w
+	c.writerFile = file
 	c.WriteContainerBlock(&doc.ContainerBlock, false)
 }
 
@@ -150,6 +155,9 @@ func (c *Converter) WriteBlockTitle(h *ast.BlockTitle, w io.Writer) {
 }
 
 func (c *Converter) WriteHeader(h *ast.Header, w io.Writer) {
+	if h.Id != "" {
+		w.Write([]byte(fmt.Sprintf(`<a id="%v"></a>` + "\n", h.Id)))
+	}
 	w.Write([]byte(strings.Repeat("#", h.Level) + " " + h.Text + "\n"))
 }
 
@@ -238,12 +246,16 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 		case *ast.Header:
 			h := b.(*ast.Header)
 			if c.writerFunc != nil {
-				newWriter := c.writerFunc(h)
+				newWriter, newFile := c.writerFunc(h)
 				if newWriter != nil {
 					c.writer = newWriter
+					c.writerFile = newFile
 				}
 			}
-			c.WriteHeader(h, c.writer)
+			//converter hack
+			if h.Text != "<skip>" {
+				c.WriteHeader(h, c.writer)
+			}
 		case *ast.ContainerBlock:
 			c.WriteContainerBlock(b.(*ast.ContainerBlock),firstLineIndent)
 		case *ast.HorLine:
@@ -266,7 +278,7 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 		case *ast.SyntaxBlock:
 			c.WriteSyntaxBlock(b.(*ast.SyntaxBlock))
 		case *ast.Bookmark:
-			c.WriteString("TODO: BOOKMARK\n")
+			c.WriteString(fmt.Sprintf(`<a id="%v"></a>`, b.(*ast.Bookmark).Literal))
 
 		default:
 			panic("invalid ast block\n" + b.String(""))
@@ -285,17 +297,34 @@ func (c *Converter) WriteInlineImage(p *ast.InlineImage, w io.Writer) {
 func (c *Converter) WriteHorLine(p *ast.HorLine, w io.Writer) {
 	w.Write([]byte("***\n"))
 }
-
+//TODO: ссылки на документацию на сайте надо конвертировать:
+// например https://mytessa.ru/docs/AdministratorGuide/AdministratorGuide.html#publishDeski[Руководстве администратора]
+// <<repair-hosting, Возможных проблем>>
 func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
 	w.Write([]byte(fmt.Sprintf("[%s](%s)", l.Text, l.Url)))
 }
 
 func (c *Converter) WriteSyntaxBlock(sb *ast.SyntaxBlock) {
-	str := sb.Literal
+	var str string
 	if sb.Literal[len(sb.Literal)-1:] == "\n" {
 		//trim last newline
 		str = sb.Literal[:len(sb.Literal)-1]
 	}
+	if str[0] == '\n' {
+		//trim first newline
+		//c.log.Error(context.Background(), "!!! fuck!!!!")
+		str = str[1:]
+	}
+
+	if sb.InlineHighlight {
+		//there are `pass:quotes[#some_text#]` highlighting
+		str = strings.ReplaceAll(str, `pass:quotes[#`, `<span style="background-color: lightyellow">`)
+		str = strings.ReplaceAll(str, `#]`, `</span>`)
+		c.WriteString(fmt.Sprintf(`<pre><code lang="%s">`, sb.Lang))
+		c.WriteString(str)
+		c.WriteString("</code></pre>\n")
+		return
+	}
 	str = strings.ReplaceAll(str,"\n", "\n" + c.curIndent + "   ")
-	c.WriteString(fmt.Sprintf("```%s\n%s   %s\n%s```\n", sb.Lang, c.curIndent, str, c.curIndent))
+	c.WriteString(fmt.Sprintf("``` %s\n%s   %s\n%s```\n", sb.Lang, c.curIndent, str, c.curIndent))
 }
