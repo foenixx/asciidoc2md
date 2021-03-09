@@ -10,6 +10,10 @@ type Block interface {
 	String(indent string) string
 }
 
+type Walker interface {
+	Walk(f func(b Block))
+}
+
 type ContainerBlock struct {
 	Blocks []Block
 }
@@ -20,6 +24,16 @@ func (b *ContainerBlock) Add(blok Block) {
 
 func (b *ContainerBlock) Append(blok ...Block) {
 	b.Blocks = append(b.Blocks, blok...)
+}
+
+func (b *ContainerBlock) Walk(f func(b Block)) {
+	for _, blok := range b.Blocks {
+		f(blok)
+		wkr, ok := blok.(Walker)
+		if ok {
+			wkr.Walk(f)
+		}
+	}
 }
 
 func (b *ContainerBlock) String(indent string) string {
@@ -44,10 +58,18 @@ func (b *Document) String(indent string) string {
 	return strings.Replace(s, "container block", "document", 1)
 }
 
+var _ Walker = (*Document)(nil)
+
 type Paragraph struct {
 	ContainerBlock
 }
 
+var _ Walker = (*Paragraph)(nil)
+/*
+func (d *Document) Walk(f func(b Block)) {
+	d.ContainerBlock.Walk(f)
+}
+*/
 func (b *Paragraph) String(indent string) string {
 	s := b.ContainerBlock.String(indent)
 	return strings.Replace(s, "container block", "paragraph", 1)
@@ -63,6 +85,8 @@ type ExampleBlock struct {
 	ContainerBlock
 	Options string
 }
+
+var _ Walker = (*ExampleBlock)(nil)
 
 func (ex *ExampleBlock) String(indent string) string {
 	s := ex.ContainerBlock.String(indent)
@@ -97,6 +121,12 @@ type List struct {
 	Marker string
 	Level int
 	Numbered bool
+}
+
+func (l *List) Walk(f func(b Block)) {
+	for _, item := range l.Items {
+		item.Walk(f)
+	}
 }
 
 func (l *List) CheckMarker(m string) bool {
@@ -214,6 +244,10 @@ type Admonition struct {
 	Content *Paragraph
 }
 
+func (l *Admonition) Walk(f func(b Block)) {
+	l.Content.Walk(f)
+}
+
 func (a *Admonition) String(indent string) string {
 	var cStr string
 	if a.Content == nil {
@@ -229,6 +263,12 @@ type Table struct {
 	Options string
 	Columns int
 	Cells   []*ContainerBlock
+}
+
+func (t *Table) Walk(f func(b Block)) {
+	for _, cell := range t.Cells {
+		cell.Walk(f)
+	}
 }
 
 func (t *Table) SetOptions(options string) {

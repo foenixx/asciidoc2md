@@ -2,13 +2,15 @@ package markdown
 
 import (
 	"asciidoc2md/ast"
+	"asciidoc2md/utils"
 	"cdr.dev/slog"
+	"context"
 	"fmt"
 	"io"
 	"strings"
 )
 
-type GetWriterFunc func(*ast.Header) (io.Writer, string)
+type GetWriterFunc func(*ast.Header) io.Writer
 
 type Converter struct {
 	imageFolder string
@@ -16,17 +18,20 @@ type Converter struct {
 	log         slog.Logger
 	writerFunc  GetWriterFunc
 	writer      io.Writer
-	writerFile  string
+	//writerFile  string
 	idMap	map[string]string //header id to file mapping
 }
 
-func New(imFolder string, logger slog.Logger, writerFunc GetWriterFunc) *Converter {
-	return &Converter{imageFolder: imFolder, log: logger, writerFunc: writerFunc}
+func New(imFolder string, idMap map[string]string, logger slog.Logger, writerFunc GetWriterFunc) *Converter {
+	return &Converter{imageFolder: imFolder,
+		idMap: idMap,
+		log: logger,
+		writerFunc: writerFunc}
 }
 
-func (c *Converter) RenderMarkdown(doc *ast.Document, w io.Writer, file string) {
+func (c *Converter) RenderMarkdown(doc *ast.Document, w io.Writer) {
 	c.writer = w
-	c.writerFile = file
+	//c.writerFile = file
 	c.WriteContainerBlock(&doc.ContainerBlock, false)
 }
 
@@ -182,16 +187,32 @@ func (c *Converter) ConvertParagraph(p *ast.Paragraph) string {
 	return res.String()
 }
 
-func (c *Converter) WriteParagraph(p *ast.Paragraph, w io.Writer) {
+func isPunctuation(s string) bool {
+	return utils.RuneIs(rune(s[0]), ',','.',':',';')
+}
 
+func (c *Converter) WriteParagraph(p *ast.Paragraph, w io.Writer) {
+	var needSpace bool
 	for _, b := range p.Blocks {
 		switch b.(type) {
 		case *ast.Text:
-			w.Write([]byte(b.(*ast.Text).Text))
+			txt := b.(*ast.Text)
+			if needSpace && !isPunctuation(txt.Text){
+				w.Write([]byte(" "))
+			}
+			//converting "*" (asciidoc bold) to "**" (markdown bold)
+			//no need to convert asciidoc italic "_" since it's still an italic in markdown
+			str := strings.ReplaceAll(txt.Text, "`*", "`")
+			str = strings.ReplaceAll(str, "*`", "`")
+			str = strings.ReplaceAll(str, "*", "**")
+			w.Write([]byte(str))
+			needSpace = false
 		case *ast.InlineImage:
 			c.WriteInlineImage(b.(*ast.InlineImage), w)
+			needSpace = true
 		case *ast.Link:
 			c.WriteLink(b.(*ast.Link),w)
+			needSpace = true
 		}
 	}
 }
@@ -246,10 +267,10 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 		case *ast.Header:
 			h := b.(*ast.Header)
 			if c.writerFunc != nil {
-				newWriter, newFile := c.writerFunc(h)
+				newWriter := c.writerFunc(h)
 				if newWriter != nil {
 					c.writer = newWriter
-					c.writerFile = newFile
+					//c.writerFile = newFile
 				}
 			}
 			//converter hack
@@ -301,7 +322,16 @@ func (c *Converter) WriteHorLine(p *ast.HorLine, w io.Writer) {
 // например https://mytessa.ru/docs/AdministratorGuide/AdministratorGuide.html#publishDeski[Руководстве администратора]
 // <<repair-hosting, Возможных проблем>>
 func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
-	w.Write([]byte(fmt.Sprintf("[%s](%s)", l.Text, l.Url)))
+	if l.Internal &&  c.idMap != nil {
+		file, ok := c.idMap[l.Url]
+		if !ok {
+			c.log.Error(context.Background(), "cannot find file map for link", slog.F("link", l))
+		}
+		w.Write([]byte(fmt.Sprintf("[%s](%s#%s)", l.Text, file, l.Url)))
+	} else {
+		w.Write([]byte(fmt.Sprintf("[%s](%s)", l.Text, l.Url)))
+	}
+
 }
 
 func (c *Converter) WriteSyntaxBlock(sb *ast.SyntaxBlock) {

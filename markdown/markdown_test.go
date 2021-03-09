@@ -97,15 +97,17 @@ func TestConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 	input :=
 `
-Строка подключения.
-[[conn-string]]
-.Для подключения к SQL Server с использованием Windows аутентификации:
-[source, xml, subs="macros+", role=small]
-----
-  "ConnectionStrings": {
-        "default": "Server=pass:quotes[#.\\SQLEXPRESS#]; Database=pass:quotes[#tessa#]; Integrated Security=true; Connect Timeout=200; pooling='true'; Max Pool Size=200; MultipleActiveResultSets=true;"
-    }
-----
+
+.Установите .NET Runtime & Windows Server Hosting bundle
+* Установка описана https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/iis/?view=aspnetcore-5.0#install-the-net-core-hosting-bundle[в документации на сайте Microsoft]:
+** Перейдите https://dotnet.microsoft.com/download/dotnet/5.0[на страницу загрузки]. В разделе Runtime 5.0.x найдите последнюю доступную версию (обычно сверху), скачайте и установите Runtime & Hosting Bundle для Windows по ссылке "Hosting Bundle" (на картинке ниже).
++
+[.text-center]
+image::image088.png[]
++
+IMPORTANT: На странице со списком версий не выбирайте preview-версию.
++
+IMPORTANT: Устанавливайте .NET Hosting bundle ТОЛЬКО после установки и настройки IIS. Исправление описано в разделе <<repair-hosting, Возможных проблем>>.
 `
 	p := parser.New(input, logger)
 	doc, err := p.Parse()
