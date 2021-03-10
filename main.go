@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	stdLog "log"
 	"os"
+	"path/filepath"
 )
 
 var log slog.Logger //global logger
@@ -33,7 +34,7 @@ func main() {
 	outputPath := os.Args[3]
 	imagePath := os.Args[4]
 	var config *settings.Config
-	if len(os.Args) >= 5 {
+	if len(os.Args) >= 6 {
 		settingsFile := os.Args[5]
 		str, err := ioutil.ReadFile(settingsFile)
 		if err != nil {
@@ -43,6 +44,8 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+	} else {
+		config = &settings.Config{}
 	}
 
 	initLog(false)
@@ -54,7 +57,8 @@ func main() {
 		panic(err)
 	}
 
-	p := parser.New(string(input), log)
+
+	p := parser.New(string(input), filepath.Dir(inputFile), log)
 	doc, err := p.Parse()
 	if err != nil {
 		panic(err)

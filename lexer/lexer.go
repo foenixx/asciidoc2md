@@ -343,6 +343,8 @@ Returns found token and count of consumed bytes.
 */
 func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 	switch {
+	case strings.HasPrefix(w, "include::"):
+		return &token.Token{Type: token.INCLUDE, Line: l.line, Literal: w}, len(w)
 	case strings.HasPrefix(w, "|==="):  //table
 		return &token.Token{Type: token.TABLE, Line: l.line, Literal: w}, len(w)
 	//case l.tableFlag && w == "|": //column
@@ -362,7 +364,7 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 		//interrupt parsing here, for debugging sake
 		l.ch = 0
 		return &token.Token{Type: token.EOF, Line: l.line, Literal: w}, len(w)
-	case strings.HasPrefix(w,"image:"): //inline image
+/*	case strings.HasPrefix(w,"image:"): //inline image
 		//find closing bracket
 		br := strings.Index(w, "]")
 		//cannot find closing bracket
@@ -370,7 +372,7 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 			return &token.Token{Type: token.ILLEGAL, Literal: w, Line: l.line}, len(w)
 		}
 		return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w[:br+1]}, br + 1
-	//case l.tableFlag && w == "|": //column
+*/	//case l.tableFlag && w == "|": //column
 	//	return &token.Token{Type: token.COLUMN, Line: l.line, Literal: w}, len(w)
 	//case l.tableFlag && w == "a" && l.ch == '|': // 'a|' column
 	//	return &token.Token{Type: token.A_COLUMN, Line: l.line, Literal: "a|"}, 2
@@ -421,7 +423,7 @@ func (l *Lexer) readBlockOptions() *token.Token {
 	}
 	return &token.Token{Type: token.STR, Line: l.line, Literal: l.input[pos:l.position]}
 }
-
+// Reads links like this: "<<..., ...>>"
 func (l *Lexer) readInternalLink() *token.Token {
 	pos := l.position
 	l.readUntil(true, true, '>')

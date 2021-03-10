@@ -1,0 +1,10 @@
+
+document:
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: В плейсхолдере также можно чер...робное описание см. в разделе 
+        link: (true, Плейсхолдер {t:...}, Возможные параметры форматирования, п. 10,paramPlholder)
+        text: ).
+  list end
