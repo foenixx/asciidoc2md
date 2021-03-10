@@ -142,7 +142,7 @@ document:
 }
 
 func testACase(t *testing.T, tc *parserTestCase, log slog.Logger) {
-	p := New(tc.input, log)
+	p := New(tc.input, "", log)
 	doc, err := p.Parse()
 
 	if assert.NoError(t, err) {
@@ -157,7 +157,7 @@ func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
 		return
 	}
 
-	p := New(string(input), log)
+	p := New(string(input), "", log)
 	log.Info(context.Background(), "test message")
 	doc, err := p.Parse()
 	if !assert.NoError(t, err) {
@@ -198,7 +198,29 @@ var case1 = parserTestCase{
 name: "debug",
 input:
 `
-используя консольную команду tadmin. Если система была установлена вручную без задействования скриптов или же автоматическая публикация по каким-то причинам не прошла, то опубликовать Deski можно вручную с помощью консольной утилиты tadmin, используя команду <<tadminPackageWebApp, PackageWebApp>>.
+= Руководство администратора СЭД TESSA
+Syntellect 2021 <https://www.mytessa.ru>
+vSyntellect TESSA {version}
+:keywords: Syntellect TESSA, TESSA, ТЕССА, TESSA ECM, Руководство администратора, Administrator Guide
+:toc: left
+:source-highlighter: pygments
+:pygments-style: default 
+:icons: font
+:sectnums:
+:data-uri:
+:imagesdir: images
+:last-update-label!:
+:version-label!:
+:toc-title: Содержание
+:toclevels: 3
+
+include::..\yandex-counter.adoc[]
+
+[.text-left]
+image::image1.png[]
+[.text-center]
+(C) Syntellect 2021
+
 `,
 expected: "",
 }

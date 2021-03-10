@@ -4,17 +4,22 @@ import (
 	"asciidoc2md/ast"
 	"asciidoc2md/lexer"
 	"asciidoc2md/token"
+	"asciidoc2md/utils"
 	"cdr.dev/slog"
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 const ILLEGAL = "ILLEGAL"
 
 type Parser struct{
+	includePath string
 	l       *lexer.Lexer
 	tokens  []*token.Token
 	next    int          //next token index
@@ -27,9 +32,10 @@ type Parser struct{
 	tableFlag bool
 }
 
-func New(input string, logger slog.Logger) *Parser {
+func New(input string, includePath string, logger slog.Logger) *Parser {
 	var p Parser
 	p.log = logger
+	p.includePath = includePath
 	p.l = lexer.New(input)
 	return &p
 }
@@ -119,7 +125,8 @@ forLoop:
 			if err != nil {
 				return nil, err
 			}
-			if b != nil {
+
+			if b != nil && !utils.IsNil(b) {
 				doc.Add(b)
 			}
 		}
@@ -157,6 +164,8 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		return p.parseParagraph()
 	case p.tok.Type == token.BLOCK_IMAGE:
 		return p.parseImage(options)
+	case p.tok.Type == token.INCLUDE:
+		return p.parseInclude(options)
 	case p.tok.Type == token.HOR_LINE:
 		if !p.advance() {
 			return nil, fmt.Errorf("cannot advance after HOR_LINE token")
@@ -197,6 +206,10 @@ func (p *Parser) isListMarker() bool {
 	return p.tok.Type == token.NL_MARK || p.tok.Type == token.L_MARK
 }
 
+func (p *Parser) isColumn() bool {
+	return p.tok.Type == token.COLUMN || p.tok.Type == token.A_COLUMN
+}
+
 func (p *Parser) isParagraph(tok *token.Token) bool {
 	return tok.Type == token.STR || tok.Type == token.INLINE_IMAGE || tok.Type == token.URL || tok.Type == token.INT_LINK
 }
@@ -225,12 +238,10 @@ func (p *Parser) parseBookmark() (ast.Block, error) {
 	if !p.advance() {
 		return nil, ErrCannotAdvance
 	}
-	if p.tok.Type == token.NEWLINE {
+	if p.tok.Type == token.NEWLINE && p.peekToken(1).Type == token.HEADER {
 		if !p.advance() {
 			return nil, ErrCannotAdvance
 		}
-	}
-	if p.tok.Type == token.HEADER {
 		h, err := p.parseHeader(b.Literal)
 		return h, err
 	}
@@ -241,8 +252,8 @@ func (p *Parser) parseBookmark() (ast.Block, error) {
 func (p *Parser) parseInternalLink() (*ast.Link, error) {
 	link := ast.Link{Internal: true}
 
-	parts := strings.Split(p.tok.Literal, ",")
-	if len(parts) > 2 || len(parts) == 0 {
+	parts := strings.SplitN(p.tok.Literal, ",", 2)
+	if len(parts) == 0 {
 		return nil, fmt.Errorf("invalid internal link: %v", p.tok.Literal)
 	}
 	link.Url = parts[0]
@@ -376,6 +387,7 @@ func (p *Parser) parseParagraph() (*ast.Paragraph, error) {
 }
 
 var imageRE = regexp.MustCompile(`^image::?(.*)\[`)
+var includeRE = regexp.MustCompile(`^include::?(.*)\[(.*)\]$`)
 var inlineImageRE = regexp.MustCompile(`^image:(.*)\[`)
 
 func (p *Parser) parseImage(options string) (*ast.Image, error) {
@@ -392,6 +404,58 @@ func (p *Parser) parseImage(options string) (*ast.Image, error) {
 	}
 	return &ast.Image{Options: options, Path: matches[1]}, nil
 }
+
+//include::RoutingGuide.adoc[leveloffset=+1]
+func (p *Parser) parseInclude(options string) (*ast.ContainerBlock, error) {
+	var err error
+	matches := includeRE.FindStringSubmatch(p.tok.Literal)
+	if len(matches) != 3 {
+		return nil, fmt.Errorf("invalid include literal: %v", p.tok.Literal)
+	}
+	//skip newline after image
+	if !p.advanceMany(2) {
+		return nil, ErrCannotAdvance
+	}
+	if p.prevTok.Type != token.NEWLINE {
+		return nil, fmt.Errorf("parseImage: no NEWLINE after image")
+	}
+	file := matches[1]
+	if strings.Contains(file, "yandex-counter.adoc") {
+		return nil, nil
+	}
+
+	opts := strings.Split(matches[2], "=")
+	var levelOffset int64
+	if len(opts) > 0 && opts[0] == "leveloffset" {
+		levelOffset, err = strconv.ParseInt(opts[1], 10, 32)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var data []byte
+	p.log.Info(context.Background(), "parsing include file", slog.F("name", file), slog.F("leveloffset", levelOffset))
+	data, err = ioutil.ReadFile(filepath.Join(p.includePath, file))
+	if err != nil {
+		return nil, err
+	}
+	parser := New(string(data), p.includePath, p.log)
+	var doc *ast.Document
+	doc, err = parser.Parse()
+	if err != nil {
+		return nil, err
+	}
+	p.log.Info(context.Background(), "parsed include file", slog.F("name", file))
+	if levelOffset > 0 {
+		doc.Walk(func(b ast.Block) {
+			h, ok := b.(*ast.Header)
+			if ok {
+				h.Level += int(levelOffset-1)
+			}
+		})
+	}
+	return &ast.ContainerBlock{Blocks: doc.Blocks}, nil
+}
+
 
 func (p *Parser) parseInlineImage() (*ast.InlineImage, error) {
 	matches := inlineImageRE.FindStringSubmatch(p.tok.Literal)
@@ -412,7 +476,7 @@ func (p *Parser) parseListItem() (*ast.ContainerBlock, error) {
 l1:
 	for {
 		switch {
-		case p.isDoubleNewline() ||	p.isListMarker() ||	p.tok.Type == token.EOF:
+		case p.isDoubleNewline() ||	p.isListMarker() ||	p.isColumn() || p.tok.Type == token.TABLE || p.tok.Type == token.EOF:
 			break l1
 		case p.tok.Type == token.NEWLINE:
 			if !p.advance() { return nil, fmt.Errorf("parse list item: cannot advance tokens") }
@@ -497,8 +561,8 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 
 	for {
 		switch {
-		case (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) || p.tok.Type == token.EOF ||
-				p.tok.Type == token.EX_BLOCK:
+		case p.isDoubleNewline() || p.tok.Type == token.EOF ||
+				p.tok.Type == token.EX_BLOCK || p.isColumn() || p.tok.Type == token.TABLE:
 			//end of the list
 			//p.nestedListLevel = 0
 			return &list, nil

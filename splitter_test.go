@@ -6,7 +6,9 @@ import (
 	"cdr.dev/slog/sloggers/slogtest"
 	"context"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -32,7 +34,7 @@ func TestSplitter_FindFirstHeader(t *testing.T) {
 	//ctx := context.Background()
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
 
-	p := parser.New(splitterTestInput, log)
+	p := parser.New(splitterTestInput, "", log)
 	doc, err := p.Parse()
 	if !assert.NoError(t, err) {
 		return
@@ -51,7 +53,7 @@ func TestSplitter_NextFile(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
 	headerMap := map[string]string{ "Header2": "part2.md"}
 
-	p := parser.New(splitterTestInput, log)
+	p := parser.New(splitterTestInput, "", log)
 	doc, err := p.Parse()
 	if !assert.NoError(t, err) {
 		return
@@ -83,7 +85,7 @@ func TestSplitter_WriteMarkdown(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
 	headerMap := map[string]string{ "Header2": "part2.md"}
 
-	p := parser.New(splitterTestInput, log)
+	p := parser.New(splitterTestInput, "", log)
 	doc, err := p.Parse()
 	if !assert.NoError(t, err) {
 		return
@@ -100,14 +102,13 @@ func TestSplitter_WriteMarkdown(t *testing.T) {
 	}
 }
 
-
 func TestSplitter(t *testing.T) {
 	ctx := context.Background()
 	headerMap := map[string]string{ "Header2": "part2.md"}
 
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
 	logger.Info(ctx, "splitter test")
-	p := parser.New(splitterTestInput, log)
+	p := parser.New(splitterTestInput, "", log)
 	log.Info(context.Background(), "test message")
 	doc, err := p.Parse()
 	if !assert.NoError(t, err) {
@@ -118,4 +119,28 @@ func TestSplitter(t *testing.T) {
 	assert.Equal(t, map[string]string{"id_header3": "part2.md","id_listitem2": "slug_2.md"}, splitter.idMap)
 	assert.Equal(t, []string{"part2.md", "slug_2.md"}, splitter.fileNames)
 	//logger.Info(ctx, "filling idMap", slog.F("idmap", splitter.idMap))
+}
+
+func TestSplitter_Debug(t *testing.T) {
+	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+
+	inputFile := "docs/admin/AdministratorGuide.adoc"
+	outputSlug := "admin"
+	outputPath := "c:/personal/mkdocs/tessa_docs/docs/"
+	imagePath := "/images"
+
+	input, err := ioutil.ReadFile(inputFile)
+	if !assert.NoError(t, err) {
+		return
+	}
+
+	p := parser.New(string(input), filepath.Dir(inputFile), log)
+	doc, err := p.Parse()
+	if err != nil {
+		panic(err)
+	}
+	splitter := NewFileSplitter(doc, outputSlug, nil, outputPath, logger)
+	err = splitter.RenderMarkdown(imagePath)
+	assert.NoError(t, err)
+
 }

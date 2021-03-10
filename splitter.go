@@ -122,10 +122,15 @@ func (fs *FileSplitter) init() {
 	str := fmt.Sprintf("    - %s: %s\n", fs.firstHeader.Text, fs.fileName)
 
 	fs.doc.Walk(func(b ast.Block) {
+		ctx := context.Background()
+		fs.log.Debug(ctx, "walker block", slog.F("block", b))
+		if b == nil {
+			fs.log.Error(ctx, "walker: nil block")
+		}
 		switch b.(type) {
 		case *ast.Header:
 			hd := b.(*ast.Header)
-			fs.log.Debug(context.Background(), "walking by header", slog.F("header", hd))
+			fs.log.Debug(ctx, "walking by header", slog.F("header", hd))
 			if hd.Id != "" {
 				fs.idMap[hd.Id] = fs.fileName
 			}
@@ -135,7 +140,7 @@ func (fs *FileSplitter) init() {
 				str += fmt.Sprintf("    - %s: %s\n", hd.Text, fs.fileName)
 			}
 		case *ast.Bookmark:
-			fs.log.Debug(context.Background(), "walking by bookmark", slog.F("header", b.(*ast.Bookmark)))
+			fs.log.Debug(ctx, "walking by bookmark", slog.F("header", b.(*ast.Bookmark)))
 			fs.idMap[b.(*ast.Bookmark).Literal] = fs.fileName
 		}
 	})

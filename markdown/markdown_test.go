@@ -97,17 +97,55 @@ func TestConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 	input :=
 `
+|===
+|Параметр |Описание
+a|
+Строка подключения.
+[[conn-string]]
+.Для подключения к SQL Server с использованием Windows аутентификации:
+[source, xml, subs="macros+", role=small]
+----
+  "ConnectionStrings": {
+        "default": "Server=pass:quotes[#.\\SQLEXPRESS#]; Database=pass:quotes[#tessa#]; Integrated Security=true; Connect Timeout=200; pooling='true'; Max Pool Size=200; MultipleActiveResultSets=true;"
+    }
+----
+.Для подключения с использованием пользователя SQL Server:
+[source, xml, subs="macros+", role=small]
+----
+  "ConnectionStrings": {
+        "default": "Server=pass:quotes[#.\\SQLEXPRESS#]; Database=pass:quotes[#tessa#]; Integrated Security=false; User ID=pass:quotes[#sa#]; Password=pass:quotes[#master#]; Connect Timeout=200; pooling='true'; Max Pool Size=200; MultipleActiveResultSets=true;"
+    }
+----
+.Для подключения с использованием пользователя SQL Server и указанием номера порта (1433 - номера порта по умолчанию для протокола TCP/IP):
+[source, xml, subs="macros+", role=small]
+----
+  "ConnectionStrings": {
+        "default": "Server=pass:quotes[#.\\SQLEXPRESS,1433#]; Database=pass:quotes[#tessa#]; Integrated Security=false; User ID=pass:quotes[#sa#]; Password=pass:quotes[#master#]; Connect Timeout=200; pooling='true'; Max Pool Size=200; MultipleActiveResultSets=true;"
+    }
+----
+.Для подключения с использованием пользователя PostgreSQL:
+[source, xml, subs="macros+", role=small]
+----
+  "ConnectionStrings": {
+        "default": [ "Host=pass:quotes[#localhost#]; Database=pass:quotes[#tessa#]; Integrated Security=false; User ID=pass:quotes[#postgres#]; Password=pass:quotes[#Master1234#]; Pooling=true; MaxPoolSize=100", "Npgsql" ]
+  },
+----
+|
 
-.Установите .NET Runtime & Windows Server Hosting bundle
-* Установка описана https://docs.microsoft.com/en-us/aspnet/core/host-and-deploy/iis/?view=aspnetcore-5.0#install-the-net-core-hosting-bundle[в документации на сайте Microsoft]:
-** Перейдите https://dotnet.microsoft.com/download/dotnet/5.0[на страницу загрузки]. В разделе Runtime 5.0.x найдите последнюю доступную версию (обычно сверху), скачайте и установите Runtime & Hosting Bundle для Windows по ссылке "Hosting Bundle" (на картинке ниже).
-+
-[.text-center]
-image::image088.png[]
-+
-IMPORTANT: На странице со списком версий не выбирайте preview-версию.
-+
-IMPORTANT: Устанавливайте .NET Hosting bundle ТОЛЬКО после установки и настройки IIS. Исправление описано в разделе <<repair-hosting, Возможных проблем>>.
+Строка подключения к базе данных Tessa в формате http://msdn.microsoft.com/ru-ru/library/system.data.sqlclient.sqlconnection.connectionstring.aspx[Sql Server Connection string]/PostgreSQL connection strings. 
+
+Не забывайте, что подключение к MS SQL Server в случае использования Windows аутентификации (Integrated Security=true) будет происходить от учетной записи, от которой запущен пул приложений, обычно это 
+
+a|
+[[server-code]]
+[source, xml, subs="macros+", role=small]
+----
+"ServerCode": "pass:quotes[#tessa#]"
+----
+|
+Код сервера. Для разных инсталляций Tessa указывайте разные коды приложений, например, "prod" или "qa". Код сервера используется для формирования ссылок tessa:// для desktop-клиента, при этом код сервера в Tessa Applications и на сервере должны совпадать. Также код сервера используется для разделения глобального кэша метаинформации между процессами, поэтому при использовании на сервере приложения нескольких экземпляров системы, укажите для каждого из них отличающийся код сервера. Подробнее по установке второго сервиса на одном сервере приложений см. в разделе <<secondinstance, Установка второго экземпляра Tessa на этом же сервере приложений>>.
+
+|===
 `
 	p := parser.New(input, logger)
 	doc, err := p.Parse()

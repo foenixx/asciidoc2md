@@ -84,7 +84,7 @@ func (c *Converter)	ConvertComplexTable(t *ast.Table) *ast.List {
 		if par, ok = cell.Blocks[0].(*ast.Paragraph); !ok {
 			header = append(header, "HEADER IS NOT A PARAGRAPH!")
 		} else {
-			header = append(header, c.ConvertParagraph(par))
+			header = append(header, c.ConvertParagraph(par, true))
 		}
 	}
 	i := t.Columns
@@ -94,15 +94,17 @@ func (c *Converter)	ConvertComplexTable(t *ast.Table) *ast.List {
 
 		for col := 0; col < t.Columns; col++ {
 			switch {
-			case (col == 0 && isDefList) || header[col] == "":
+			case col == 0 && isDefList:
 				//first column text becomes a header
-				h := strings.TrimSpace(c.ConvertParagraph(t.Cells[i].Blocks[0].(*ast.Paragraph)))
-				if h[0] != '`' {
+				//c.log.Info(context.Background(), "cell", slog.F("h", t.Cells[i].String("")))
+				h := strings.TrimSpace(c.ConvertParagraph(t.Cells[i].Blocks[0].(*ast.Paragraph), true))
+				//c.log.Info(context.Background(), "header", slog.F("h", h))
+				if h != "" && !utils.RuneIs(rune(h[0]), '`','*') {
 					h = "`" + h + "`"
 				}
 				rowCont.Add(ast.NewParagraphFromStr(h))
-			case col == 1 && isDefList:
-				//second column goes without a header
+			case col == 1 && t.Columns == 2:
+				//second column goes without a header (only for tables with 2 columns)
 				rowCont.Append(t.Cells[i].Blocks...)
 			default:
 				if header[col] != "" {
@@ -131,27 +133,36 @@ func (c *Converter) WriteTable(t *ast.Table) {
 	}
 	t.Header = true
 	row := 0
+	col := 1
 	for i, cell := range t.Cells {
 		 if i % t.Columns == 0 {
 		 	//new row
 		 	row++
+		 	col = 1
 		 	c.WriteString(c.curIndent + "| ")
+		 } else {
+		 	col++
 		 }
 		 if t.Header && row == 2 {
 		 	//let's write header delimiter
 		 	t.Header = false //TODO: remove dirty hack
 			 c.WriteString(strings.Repeat(" --- |", t.Columns) + "\n" + c.curIndent + "| ")
 		 }
-		 if len(cell.Blocks) == 0 {
-			 c.WriteString(" |")
-		 } else {
-			 c.WriteParagraph(cell.Blocks[0].(*ast.Paragraph), c.writer)
-			 c.WriteString(" |")
+		 //cell can be empty
+		 if len(cell.Blocks) > 0 {
+			 val := c.ConvertParagraph(cell.Blocks[0].(*ast.Paragraph), false)
+			 if t.Header && row == 1 && col == 1 {
+				 //https://stackoverflow.com/a/57420043
+				 val = fmt.Sprintf(`<div style="width:13em">%s</div>`, val)
+			 }
+			 c.WriteString(val)
 		 }
-		if i % t.Columns == t.Columns - 1 {
+		 c.WriteString(" |")
+
+		 if i % t.Columns == t.Columns - 1 {
 			//last cell of the current column
 			c.WriteString("\n")
-		}
+		 }
 	}
 }
 
@@ -177,13 +188,13 @@ func (c *Converter) WriteAdmonition(a *ast.Admonition, w io.Writer) {
 		kind = strings.ToLower(a.Kind)
 	}
 	w.Write([]byte(fmt.Sprintf("!!! %s\n%v    ", kind, c.curIndent)))
-	c.WriteParagraph(a.Content, w)
+	c.WriteParagraph(a.Content, false, w)
 	w.Write([]byte("\n"))
 }
 
-func (c *Converter) ConvertParagraph(p *ast.Paragraph) string {
+func (c *Converter) ConvertParagraph(p *ast.Paragraph, noFormatFix bool) string {
 	var res strings.Builder
-	c.WriteParagraph(p, &res)
+	c.WriteParagraph(p, noFormatFix, &res)
 	return res.String()
 }
 
@@ -191,7 +202,7 @@ func isPunctuation(s string) bool {
 	return utils.RuneIs(rune(s[0]), ',','.',':',';')
 }
 
-func (c *Converter) WriteParagraph(p *ast.Paragraph, w io.Writer) {
+func (c *Converter) WriteParagraph(p *ast.Paragraph, noFormatFix bool, w io.Writer) {
 	var needSpace bool
 	for _, b := range p.Blocks {
 		switch b.(type) {
@@ -202,9 +213,12 @@ func (c *Converter) WriteParagraph(p *ast.Paragraph, w io.Writer) {
 			}
 			//converting "*" (asciidoc bold) to "**" (markdown bold)
 			//no need to convert asciidoc italic "_" since it's still an italic in markdown
-			str := strings.ReplaceAll(txt.Text, "`*", "`")
-			str = strings.ReplaceAll(str, "*`", "`")
-			str = strings.ReplaceAll(str, "*", "**")
+			str := txt.Text
+			if !noFormatFix {
+				str = strings.ReplaceAll(str, "`*", "`")
+				str = strings.ReplaceAll(str, "*`", "`")
+				str = strings.ReplaceAll(str, "*", "**")
+			}
 			w.Write([]byte(str))
 			needSpace = false
 		case *ast.InlineImage:
@@ -286,7 +300,7 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 		case *ast.Image:
 			c.WriteImage(b.(*ast.Image), c.writer)
 		case *ast.Paragraph:
-			c.WriteParagraph(b.(*ast.Paragraph), c.writer)
+			c.WriteParagraph(b.(*ast.Paragraph), false, c.writer)
 			c.WriteString("\n")
 		case *ast.List:
 			c.WriteList(b.(*ast.List))

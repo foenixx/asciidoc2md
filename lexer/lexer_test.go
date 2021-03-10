@@ -347,9 +347,27 @@ var dcase = lexerTestCase {
 }
 
 func TestDbg(t *testing.T) {
-	//input2 := `Tessa может быть установлена на сервер Windows или Linux. За подробными требованиями к конфигурации серверов Windows и конфигурации клиентских компьютеров обратитесь к https://mytessa.ru/docs/InstallationGuide/InstallationGuide.html[руководству по установке сервера приложений на Windows]. Для установки сервера приложений на Linux обратитесь к  https://mytessa.ru/docs/LinuxInstallationGuide/LinuxInstallationGuide.html[руководству по установке сервера приложений на Linux].`
 	input := `
-используя консольную команду tadmin. Если система была установлена вручную без задействования скриптов или же автоматическая публикация по каким-то причинам не прошла, то опубликовать Deski можно вручную с помощью консольной утилиты tadmin, используя команду <<tadminPackageWebApp, PackageWebApp>>.
+
+.Порядок выполнения скриптов этапа
+[width="100%",options="header"]
+|====================
+| Время жизни | Условие выполнения | Порядок выполнения сценариев
+
+a| Запрос
+a| Завершение задания
+a| Сценарий валидации
+
+a|
+* Задание
+* Карточка
+a|
+* Закрытие карточки с сохранением
+* Завершение задания
+a|
+. Сценарий сохранения
+. Сценарий валидации
+|====================
 `
 	//input := "NOTE: Admonition text"
 
@@ -359,14 +377,15 @@ func TestDbg(t *testing.T) {
 }
 
 func TestFile1(t *testing.T) {
-	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
+	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
 	input, err := ioutil.ReadFile("../data/test.adoc")
 	if !assert.NoError(t, err) {
 		return
 	}
-	var tc lexerTestCase
-	tc.name = "test.adoc"
-	tc.input = string(input)
-
-	testACase(t, &tc, logger)
+	logLexems(t, string(input), logger)
+	//var tc lexerTestCase
+	//tc.name = "test.adoc"
+	//tc.input = string(input)
+	//
+	//testACase(t, &tc, logger)
 }
