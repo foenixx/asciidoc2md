@@ -57,13 +57,15 @@ func main() {
 		panic(err)
 	}
 
-
-	p := parser.New(string(input), filepath.Dir(inputFile), log)
-	doc, err := p.Parse()
+	dir := filepath.Dir(inputFile)
+	p := parser.New(string(input), func(name string) ([]byte, error) {
+		return ioutil.ReadFile(filepath.Join(dir, name))
+	}, log)
+	doc, err := p.Parse(inputFile)
 	if err != nil {
 		panic(err)
 	}
-	splitter := NewFileSplitter(doc, outputSlug, config.Headers, outputPath, log)
+	splitter := NewFileSplitter(doc, outputSlug, config, outputPath, log)
 	err = splitter.RenderMarkdown(imagePath)
 	if err != nil {
 		panic(err)

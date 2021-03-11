@@ -2,6 +2,7 @@ package main
 
 import (
 	"asciidoc2md/parser"
+	"asciidoc2md/settings"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/slogtest"
 	"context"
@@ -34,8 +35,8 @@ func TestSplitter_FindFirstHeader(t *testing.T) {
 	//ctx := context.Background()
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
 
-	p := parser.New(splitterTestInput, "", log)
-	doc, err := p.Parse()
+	p := parser.New(splitterTestInput, nil, log)
+	doc, err := p.Parse("gotest.adoc")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -51,15 +52,15 @@ func TestSplitter_FindFirstHeader(t *testing.T) {
 func TestSplitter_NextFile(t *testing.T) {
 	//ctx := context.Background()
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	headerMap := map[string]string{ "Header2": "part2.md"}
+	//headerMap := map[string]string{ "Header2": "part2.md"}
 
-	p := parser.New(splitterTestInput, "", log)
-	doc, err := p.Parse()
+	p := parser.New(splitterTestInput, nil, log)
+	doc, err := p.Parse("gotest.adoc")
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	splitter := NewFileSplitter(doc, "slug", headerMap, "", logger)
+	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, "", logger)
 	// init splitter
 	splitter.init()
 	for i := range []int{0,1} {
@@ -83,15 +84,15 @@ func TestSplitter_NextFile(t *testing.T) {
 func TestSplitter_WriteMarkdown(t *testing.T) {
 	//ctx := context.Background()
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	headerMap := map[string]string{ "Header2": "part2.md"}
+	//headerMap := map[string]string{ "Header2": "part2.md"}
 
-	p := parser.New(splitterTestInput, "", log)
-	doc, err := p.Parse()
+	p := parser.New(splitterTestInput, nil, log)
+	doc, err := p.Parse("gotest.adoc")
 	if !assert.NoError(t, err) {
 		return
 	}
 
-	splitter := NewFileSplitter(doc, "slug", headerMap, "", logger)
+	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, "", logger)
 	// init splitter
 	err = splitter.RenderMarkdown("")
 	assert.NoError(t, err)
@@ -104,29 +105,36 @@ func TestSplitter_WriteMarkdown(t *testing.T) {
 
 func TestSplitter(t *testing.T) {
 	ctx := context.Background()
-	headerMap := map[string]string{ "Header2": "part2.md"}
+	//headerMap := map[string]string{ "Header2": "part2.md"}
 
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
 	logger.Info(ctx, "splitter test")
-	p := parser.New(splitterTestInput, "", log)
+	p := parser.New(splitterTestInput, nil, log)
 	log.Info(context.Background(), "test message")
-	doc, err := p.Parse()
+	doc, err := p.Parse("gotest.adoc")
 	if !assert.NoError(t, err) {
 		return
 	}
-	splitter := NewFileSplitter(doc, "slug", headerMap, ".",logger)
+	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, ".",logger)
 	splitter.init()
-	assert.Equal(t, map[string]string{"id_header3": "part2.md","id_listitem2": "slug_2.md"}, splitter.idMap)
+	assert.Equal(t, map[string]string{"id_header3": "part2.md","id_listitem2": "slug_2.md"}, splitter.idMaps)
 	assert.Equal(t, []string{"part2.md", "slug_2.md"}, splitter.fileNames)
-	//logger.Info(ctx, "filling idMap", slog.F("idmap", splitter.idMap))
+	//logger.Info(ctx, "filling idMaps", slog.F("idmap", splitter.idMaps))
 }
 
-func TestSplitter_Debug(t *testing.T) {
-	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-
+func TestSplitter_Debug1(t *testing.T) {
+	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
+/*
 	inputFile := "docs/admin/AdministratorGuide.adoc"
+	includePath := filepath.Dir(inputFile)
 	outputSlug := "admin"
 	outputPath := "c:/personal/mkdocs/tessa_docs/docs/"
+	imagePath := "/images"
+*/
+	inputFile := "docs/dev/ProgrammersGuide.adoc"
+	includePath := filepath.Dir(inputFile)
+	outputSlug := "dev"
+	outputPath := "c:/personal/mkdocs/tessa_docs/docs/dev"
 	imagePath := "/images"
 
 	input, err := ioutil.ReadFile(inputFile)
@@ -134,13 +142,56 @@ func TestSplitter_Debug(t *testing.T) {
 		return
 	}
 
-	p := parser.New(string(input), filepath.Dir(inputFile), log)
-	doc, err := p.Parse()
+	p := parser.New(string(input), func(name string) ([]byte, error) {
+		return ioutil.ReadFile(filepath.Join(includePath, name))
+	}, log)
+	doc, err := p.Parse(inputFile)
 	if err != nil {
 		panic(err)
 	}
-	splitter := NewFileSplitter(doc, outputSlug, nil, outputPath, logger)
+	splitter := NewFileSplitter(doc, outputSlug, &settings.Config{}, outputPath, logger)
 	err = splitter.RenderMarkdown(imagePath)
 	assert.NoError(t, err)
+
+}
+
+func TestSplitter_Debug2(t *testing.T) {
+	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
+	abs, _ := filepath.Abs(".")
+	logger.Info(context.Background(), abs)
+
+	input :=`= Header 1
+
+== Header 1.1
+
+[[outer_ref]]
+include::inc.adoc[leveloffset=+1]
+
+== Header 1.2
+`
+	inc :=`= Header i1
+
+[[inner_ref_i1.1]]
+== Header i1.1
+
+== Header i1.2
+`
+
+	p := parser.New(input, func(name string) ([]byte, error) {
+		return []byte(inc), nil
+	}, log)
+	doc, err := p.Parse("gotest.adoc")
+	if err != nil {
+		panic(err)
+	}
+
+	splitter := NewFileSplitter(doc, "outputSlug", nil, ".", logger)
+	//splitter.init()
+	err = splitter.RenderMarkdown("")
+	assert.NoError(t, err)
+	for i := range splitter.fileNames {
+		os.Remove(splitter.fileNames[i])
+		//assert.NoError(t, err)
+	}
 
 }

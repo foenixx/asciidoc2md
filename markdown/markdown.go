@@ -19,7 +19,7 @@ type Converter struct {
 	writerFunc  GetWriterFunc
 	writer      io.Writer
 	//writerFile  string
-	idMap	map[string]string //header id to file mapping
+	idMap	map[string]string//header id to file mapping
 }
 
 func New(imFolder string, idMap map[string]string, logger slog.Logger, writerFunc GetWriterFunc) *Converter {
@@ -32,6 +32,10 @@ func New(imFolder string, idMap map[string]string, logger slog.Logger, writerFun
 func (c *Converter) RenderMarkdown(doc *ast.Document, w io.Writer) {
 	c.writer = w
 	//c.writerFile = file
+	c.WriteDocument(doc)
+}
+
+func (c *Converter) WriteDocument(doc *ast.Document) {
 	c.WriteContainerBlock(&doc.ContainerBlock, false)
 }
 
@@ -96,7 +100,7 @@ func (c *Converter)	ConvertComplexTable(t *ast.Table) *ast.List {
 			switch {
 			case col == 0 && isDefList:
 				//first column text becomes a header
-				//c.log.Info(context.Background(), "cell", slog.F("h", t.Cells[i].String("")))
+				//c.log.Info(context.Background(), "cell", slog.F("h", t.Cells[i].StringWithIndent("")))
 				h := strings.TrimSpace(c.ConvertParagraph(t.Cells[i].Blocks[0].(*ast.Paragraph), true))
 				//c.log.Info(context.Background(), "header", slog.F("h", h))
 				if h != "" && !utils.RuneIs(rune(h[0]), '`','*') {
@@ -116,7 +120,7 @@ func (c *Converter)	ConvertComplexTable(t *ast.Table) *ast.List {
 		}
 		list.AddItem(rowCont)
 	}
-	//c.log.Debug(context.Background(), list.String(""))
+	//c.log.Debug(context.Background(), list.StringWithIndent(""))
 	return &list
 }
 
@@ -215,6 +219,7 @@ func (c *Converter) WriteParagraph(p *ast.Paragraph, noFormatFix bool, w io.Writ
 			//no need to convert asciidoc italic "_" since it's still an italic in markdown
 			str := txt.Text
 			if !noFormatFix {
+				str = strings.ReplaceAll(str, "#", `\#`)
 				str = strings.ReplaceAll(str, "`*", "`")
 				str = strings.ReplaceAll(str, "*`", "`")
 				str = strings.ReplaceAll(str, "*", "**")
@@ -239,24 +244,6 @@ func (c *Converter) WriteExampleBlock(ex *ast.ExampleBlock) {
 	c.curIndent = ind
 }
 
-/*
-	case *ast.Header:
-		h := blok.(*ast.Header)
-		if c.writerFunc != nil {
-			newWriter := c.writerFunc(h)
-			if newWriter != nil {
-				c.writer = newWriter
-			}
-		}
-		data = c.ConvertHeader(h)
-	case *ast.ContainerBlock:
-		data = c.WriteContainerBlock(blok.(*ast.ContainerBlock), true)
-	case *ast.HorLine:
-		data = c.ConvertHorLine(blok.(*ast.HorLine))
-	case *ast.Table:
-		data = c.WriteTable(blok.(*ast.Table))
-	}
-*/
 
 func (c *Converter) WriteString(s string) error {
 	_, err := c.writer.Write([]byte(s))
@@ -291,6 +278,9 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 			if h.Text != "<skip>" {
 				c.WriteHeader(h, c.writer)
 			}
+		case *ast.Document:
+			//include
+			c.WriteDocument(b.(*ast.Document))
 		case *ast.ContainerBlock:
 			c.WriteContainerBlock(b.(*ast.ContainerBlock),firstLineIndent)
 		case *ast.HorLine:
@@ -316,7 +306,7 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 			c.WriteString(fmt.Sprintf(`<a id="%v"></a>`, b.(*ast.Bookmark).Literal))
 
 		default:
-			panic("invalid ast block\n" + b.String(""))
+			panic("invalid ast block\n" + b.StringWithIndent(""))
 		}
 	}
 }

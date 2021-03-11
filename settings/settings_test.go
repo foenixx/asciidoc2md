@@ -6,7 +6,12 @@ import (
 )
 
 func TestSettings(t *testing.T) {
-	conf := Config{Headers: map[string]string{"header 1": "file1.md","header 2": "file2.md"}}
+	map1 := map[string]string{"header 1": "file1.md","header 2": "file2.md"}
+	map2 := map[string]string{"header 3": "file1.md","header 4": "file2.md"}
+	conf := Config{
+		Headers: map[string]IdMap {"UserGuide.adoc": map1, "InstallationGuide.adoc": map2},
+		CrossLinks: map[string]string{ "UserGuide.adoc": "../user/", "InstallationGuide.adoc": "../installation/"},
+	}
 	str, _ := conf.String()
 	t.Log("\n", str)
 	//t.Fail()

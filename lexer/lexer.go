@@ -8,6 +8,8 @@ import (
 	"unicode/utf8"
 )
 
+//TODO: не пожирать пробелы внутри частей параграфа
+
 type Lexer struct {
 	input        string
 	position     int // current position in input (points to current char)

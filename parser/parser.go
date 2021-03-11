@@ -9,17 +9,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-const ILLEGAL = "ILLEGAL"
-
 type Parser struct{
-	includePath string
+	f IncludeFunc
 	l       *lexer.Lexer
 	tokens  []*token.Token
 	next    int          //next token index
@@ -32,10 +29,12 @@ type Parser struct{
 	tableFlag bool
 }
 
-func New(input string, includePath string, logger slog.Logger) *Parser {
+type IncludeFunc func(name string) ([]byte,error)
+
+func New(input string, f IncludeFunc, logger slog.Logger) *Parser {
 	var p Parser
 	p.log = logger
-	p.includePath = includePath
+	p.f = f
 	p.l = lexer.New(input)
 	return &p
 }
@@ -102,9 +101,10 @@ func (p *Parser) readAll() {
 	}
 }
 
-func (p *Parser) Parse() (*ast.Document, error) {
+func (p *Parser) Parse(name string) (*ast.Document, error) {
 	var doc ast.Document
-
+	//use only file name without directory
+	_, doc.Name = filepath.Split(name)
 	p.readAll()
 
 forLoop:
@@ -406,7 +406,7 @@ func (p *Parser) parseImage(options string) (*ast.Image, error) {
 }
 
 //include::RoutingGuide.adoc[leveloffset=+1]
-func (p *Parser) parseInclude(options string) (*ast.ContainerBlock, error) {
+func (p *Parser) parseInclude(options string) (*ast.Document, error) {
 	var err error
 	matches := includeRE.FindStringSubmatch(p.tok.Literal)
 	if len(matches) != 3 {
@@ -434,26 +434,38 @@ func (p *Parser) parseInclude(options string) (*ast.ContainerBlock, error) {
 	}
 	var data []byte
 	p.log.Info(context.Background(), "parsing include file", slog.F("name", file), slog.F("leveloffset", levelOffset))
-	data, err = ioutil.ReadFile(filepath.Join(p.includePath, file))
+	if p.f == nil {
+		return nil, fmt.Errorf("no callback, cannot get inlude file content: %v", file)
+	}
+	data, err = p.f(file)
 	if err != nil {
 		return nil, err
 	}
-	parser := New(string(data), p.includePath, p.log)
+	parser := New(string(data), p.f, p.log)
 	var doc *ast.Document
-	doc, err = parser.Parse()
+	doc, err = parser.Parse(file)
 	if err != nil {
 		return nil, err
 	}
 	p.log.Info(context.Background(), "parsed include file", slog.F("name", file))
 	if levelOffset > 0 {
-		doc.Walk(func(b ast.Block) {
+		doc.Walk(func(b ast.Block, root *ast.Document) bool {
 			h, ok := b.(*ast.Header)
 			if ok {
-				h.Level += int(levelOffset-1)
+				h.Level += int(levelOffset)
 			}
-		})
+			return true
+		}, nil)
 	}
-	return &ast.ContainerBlock{Blocks: doc.Blocks}, nil
+	//TODO: include could be bookmarked
+
+	//if p.prevTok.Type == token.BOOKMARK && len(doc.Blocks) > 0 {
+	//	hdr, ok := doc.Blocks[0].(*ast.Header)
+	//	if ok {
+	//		hdr.Id = p.prevTok.Literal
+	//	}
+	//}
+	return doc, nil
 }
 
 
