@@ -2,8 +2,11 @@ package settings
 
 import "gopkg.in/yaml.v3"
 
+type IdMap map[string]string
+
 type Config struct {
-	Headers map[string]string
+	Headers map[string]IdMap//file.adoc -> id -> file.md
+	CrossLinks map[string]string // maps adoc file name to its relative location: UserGuide.adoc -> ../user/
 }
 
 func Parse(data []byte) (*Config, error) {

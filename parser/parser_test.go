@@ -5,6 +5,7 @@ import (
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/slogtest"
 	"context"
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"os"
@@ -16,6 +17,8 @@ type (
 		name string
 		input string
 		expected string
+		incFile string
+		incContent string
 	}
 )
 
@@ -139,15 +142,54 @@ document:
           text: li2
     list end`,
 	},
+	{
+		name: "include",
+		input:
+		`
+= Header 1
+
+== Header 1.1
+
+[[include_ref]]
+include::inc.adoc[leveloffset=+1]
+
+== Header 1.2
+`,
+		incFile: "inc.adoc",
+		incContent:
+		`
+= Header i1
+
+== Header i1.1
+
+== Header i1.2
+`,
+		expected:
+		`
+document:
+  header: 1, Header 1
+  header: 2, Header 1.1
+  bookmark: include_ref
+  document:
+    header: 2, Header i1
+    header: 3, Header i1.1
+    header: 3, Header i1.2
+  header: 2, Header 1.2`,
+	},
 }
 
 func testACase(t *testing.T, tc *parserTestCase, log slog.Logger) {
-	p := New(tc.input, "", log)
+	p := New(tc.input, func(s string) ([]byte, error) {
+		if s != tc.incFile {
+			return nil, errors.New("invalid include file name")
+		}
+		return []byte(tc.incContent), nil
+	}, log)
 	doc, err := p.Parse()
 
 	if assert.NoError(t, err) {
-		t.Log(doc.String(""))
-		assert.Equal(t, tc.expected, doc.String(""))
+		t.Log(doc.StringWithIndent(""))
+		assert.Equal(t, tc.expected, doc.StringWithIndent(""))
 	}
 }
 
@@ -157,14 +199,14 @@ func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
 		return
 	}
 
-	p := New(string(input), "", log)
+	p := New(string(input), nil, log)
 	log.Info(context.Background(), "test message")
 	doc, err := p.Parse()
 	if !assert.NoError(t, err) {
 		return
 	}
-	log.Debug(context.Background(), doc.String(""))
-	//os.Stdout.WriteString(doc.String(""))
+	log.Debug(context.Background(), doc.StringWithIndent(""))
+	//os.Stdout.WriteString(doc.StringWithIndent(""))
 	if fOut != "" {
 		fo, err := os.Create(fOut)
 		if !assert.NoError(t, err) {
@@ -172,7 +214,7 @@ func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
 		}
 		defer fo.Close()
 		w := bufio.NewWriter(fo)
-		w.WriteString(doc.String(""))
+		w.WriteString(doc.StringWithIndent(""))
 		err = w.Flush()
 		if !assert.NoError(t, err) {
 			return
@@ -198,31 +240,11 @@ var case1 = parserTestCase{
 name: "debug",
 input:
 `
-= Руководство администратора СЭД TESSA
-Syntellect 2021 <https://www.mytessa.ru>
-vSyntellect TESSA {version}
-:keywords: Syntellect TESSA, TESSA, ТЕССА, TESSA ECM, Руководство администратора, Administrator Guide
-:toc: left
-:source-highlighter: pygments
-:pygments-style: default 
-:icons: font
-:sectnums:
-:data-uri:
-:imagesdir: images
-:last-update-label!:
-:version-label!:
-:toc-title: Содержание
-:toclevels: 3
-
-include::..\yandex-counter.adoc[]
-
-[.text-left]
-image::image1.png[]
-[.text-center]
-(C) Syntellect 2021
-
+* #user_id - идентификатор текущего пользователя
+* #user_name - имя текущего пользователя
 `,
-expected: "",
+expected:
+``,
 }
 
 func TestParser_DebugCase(t *testing.T) {

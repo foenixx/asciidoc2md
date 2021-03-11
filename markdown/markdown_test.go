@@ -41,7 +41,7 @@ var input2 = `
 
 
 func testACase(t *testing.T, tc *convtc, log slog.Logger) {
-	p := parser.New(tc.input, log)
+	p := parser.New(tc.input, nil, log)
 	doc, err := p.Parse()
 	if !assert.NoError(t, err) {
 		return
@@ -58,13 +58,13 @@ func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
 		return
 	}
 
-	p := parser.New(string(input), log)
+	p := parser.New(string(input), nil, log)
 	doc, err := p.Parse()
 	if !assert.NoError(t, err) {
 		return
 	}
-	log.Debug(context.Background(), doc.String(""))
-	//os.Stdout.WriteString(doc.String(""))
+	log.Debug(context.Background(), doc.StringWithIndent(""))
+	//os.Stdout.WriteString(doc.StringWithIndent(""))
 	if fOut != "" {
 		fo, err := os.Create(fOut)
 		if !assert.NoError(t, err) {
@@ -97,60 +97,23 @@ func TestConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 	input :=
 `
-|===
-|Параметр |Описание
-a|
-Строка подключения.
-[[conn-string]]
-.Для подключения к SQL Server с использованием Windows аутентификации:
-[source, xml, subs="macros+", role=small]
-----
-  "ConnectionStrings": {
-        "default": "Server=pass:quotes[#.\\SQLEXPRESS#]; Database=pass:quotes[#tessa#]; Integrated Security=true; Connect Timeout=200; pooling='true'; Max Pool Size=200; MultipleActiveResultSets=true;"
-    }
-----
-.Для подключения с использованием пользователя SQL Server:
-[source, xml, subs="macros+", role=small]
-----
-  "ConnectionStrings": {
-        "default": "Server=pass:quotes[#.\\SQLEXPRESS#]; Database=pass:quotes[#tessa#]; Integrated Security=false; User ID=pass:quotes[#sa#]; Password=pass:quotes[#master#]; Connect Timeout=200; pooling='true'; Max Pool Size=200; MultipleActiveResultSets=true;"
-    }
-----
-.Для подключения с использованием пользователя SQL Server и указанием номера порта (1433 - номера порта по умолчанию для протокола TCP/IP):
-[source, xml, subs="macros+", role=small]
-----
-  "ConnectionStrings": {
-        "default": "Server=pass:quotes[#.\\SQLEXPRESS,1433#]; Database=pass:quotes[#tessa#]; Integrated Security=false; User ID=pass:quotes[#sa#]; Password=pass:quotes[#master#]; Connect Timeout=200; pooling='true'; Max Pool Size=200; MultipleActiveResultSets=true;"
-    }
-----
-.Для подключения с использованием пользователя PostgreSQL:
-[source, xml, subs="macros+", role=small]
-----
-  "ConnectionStrings": {
-        "default": [ "Host=pass:quotes[#localhost#]; Database=pass:quotes[#tessa#]; Integrated Security=false; User ID=pass:quotes[#postgres#]; Password=pass:quotes[#Master1234#]; Pooling=true; MaxPoolSize=100", "Npgsql" ]
-  },
-----
-|
-
-Строка подключения к базе данных Tessa в формате http://msdn.microsoft.com/ru-ru/library/system.data.sqlclient.sqlconnection.connectionstring.aspx[Sql Server Connection string]/PostgreSQL connection strings. 
-
-Не забывайте, что подключение к MS SQL Server в случае использования Windows аутентификации (Integrated Security=true) будет происходить от учетной записи, от которой запущен пул приложений, обычно это 
-
-a|
-[[server-code]]
-[source, xml, subs="macros+", role=small]
-----
-"ServerCode": "pass:quotes[#tessa#]"
-----
-|
-Код сервера. Для разных инсталляций Tessa указывайте разные коды приложений, например, "prod" или "qa". Код сервера используется для формирования ссылок tessa:// для desktop-клиента, при этом код сервера в Tessa Applications и на сервере должны совпадать. Также код сервера используется для разделения глобального кэша метаинформации между процессами, поэтому при использовании на сервере приложения нескольких экземпляров системы, укажите для каждого из них отличающийся код сервера. Подробнее по установке второго сервиса на одном сервере приложений см. в разделе <<secondinstance, Установка второго экземпляра Tessa на этом же сервере приложений>>.
-
-|===
+* #user_id - идентификатор текущего пользователя
+* #user_name - имя текущего пользователя
 `
-	p := parser.New(input, logger)
+	inc :=
+`
+= Header i1
+
+== Header i1.1
+
+== Header i1.2
+`
+	p := parser.New(input, func(name string) ([]byte, error) {
+		return []byte(inc), nil
+	}, logger)
 	doc, err := p.Parse()
 	assert.Nil(t, err)
-	logger.Info(context.Background(), doc.String(""))
+	logger.Info(context.Background(), doc.StringWithIndent(""))
 	var builder = strings.Builder{}
 	conv := Converter{imageFolder: "data/images/", log: logger}
 	conv.log.Debug(context.Background(), "message")
