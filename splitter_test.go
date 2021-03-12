@@ -62,7 +62,7 @@ func TestSplitter_NextFile(t *testing.T) {
 
 	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, "", logger)
 	// init splitter
-	splitter.init()
+	splitter.init(false)
 	for i := range []int{0,1} {
 		err = splitter.nextFile()
 		if !assert.NoError(t, err) {
@@ -116,7 +116,7 @@ func TestSplitter(t *testing.T) {
 		return
 	}
 	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, ".",logger)
-	splitter.init()
+	splitter.init(true)
 	assert.Equal(t, map[string]string{"id_header3": "part2.md","id_listitem2": "slug_2.md"}, splitter.idMaps)
 	assert.Equal(t, []string{"part2.md", "slug_2.md"}, splitter.fileNames)
 	//logger.Info(ctx, "filling idMaps", slog.F("idmap", splitter.idMaps))
@@ -135,7 +135,8 @@ func TestSplitter_Debug1(t *testing.T) {
 	includePath := filepath.Dir(inputFile)
 	outputSlug := "dev"
 	outputPath := "c:/personal/mkdocs/tessa_docs/docs/dev"
-	imagePath := "/images"
+	//imagePath := "/images"
+	config := loadConfig("settings.yml")
 
 	input, err := ioutil.ReadFile(inputFile)
 	if !assert.NoError(t, err) {
@@ -149,8 +150,9 @@ func TestSplitter_Debug1(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	splitter := NewFileSplitter(doc, outputSlug, &settings.Config{}, outputPath, logger)
-	err = splitter.RenderMarkdown(imagePath)
+	splitter := NewFileSplitter(doc, outputSlug, config, outputPath, logger)
+	//err = splitter.RenderMarkdown(imagePath)
+	err = splitter.GenerateIdMap()
 	assert.NoError(t, err)
 
 }
