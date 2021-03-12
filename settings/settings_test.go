@@ -11,6 +11,7 @@ func TestSettings(t *testing.T) {
 	conf := Config{
 		Headers: map[string]IdMap {"UserGuide.adoc": map1, "InstallationGuide.adoc": map2},
 		CrossLinks: map[string]string{ "UserGuide.adoc": "../user/", "InstallationGuide.adoc": "../installation/"},
+		UrlRewrites: map[string]string{ "htts://mytessa.ru/docs/test.html": "test.adoc", "routes.adoc": "AdministratorGuide.adoc"},
 	}
 	str, _ := conf.String()
 	t.Log("\n", str)

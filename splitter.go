@@ -48,8 +48,12 @@ func NewFileSplitter(doc *ast.Document, nameSlug string, conf *settings.Config, 
 		path:   path}
 }
 
+func (fs *FileSplitter) GenerateIdMap() error {
+	return fs.init(true)
+}
+
 func (fs *FileSplitter) RenderMarkdown(imagePath string) error {
-	err := fs.init()
+	err := fs.init(false)
 	if err != nil {
 		return err
 	}
@@ -120,6 +124,8 @@ func (fs *FileSplitter) Close() {
 	}
 }
 
+//func (fs *FileSplitter)
+
 func (fs *FileSplitter) findFirstHeader() *ast.Header {
 	var hdr *ast.Header
 	fs.doc.Walk(func(b ast.Block, doc *ast.Document) bool {
@@ -134,24 +140,47 @@ func (fs *FileSplitter) findFirstHeader() *ast.Header {
 	return hdr
 }
 
+func (fs *FileSplitter)	findRewriteRule(url string) string {
+	for k, r := range fs.conf.UrlRewrites {
+		if strings.Contains(url, k) {
+			return r
+		}
+	}
+	return ""
+}
+
 func (fs *FileSplitter) urlRewrite(url *ast.Link, root *ast.Document) {
 	ctx := context.Background()
 	var id, file, doc string
+	parts := strings.Split(url.Url, "#")
+	switch len(parts) {
+	case 1:
+		//internal link
+		doc = fs.doc.Name
+		id = url.Url
+	case 2:
+		doc = parts[0]
+		id = parts[1]
+		if doc == "" {
+			//internal link
+			doc = fs.doc.Name
+		} else {
+			//name could be like this "../docs/admin.adoc"
+			_, doc = filepath.Split(doc)
+		}
+	default:
+		fs.log.Error(ctx, "cannot rewrite url", slog.F("url", url))
+		return
+	}
+
+	rule := fs.findRewriteRule(doc)
+	if rule != "" {
+		fs.log.Debug(ctx, "found rewrite rule", slog.F(doc, rule))
+		doc = rule
+	}
 	if url.Internal {
 		//link to the same file: "some_file.adoc#id"
-		parts := strings.Split(url.Url, "#")
-		switch len(parts) {
-		case 1:
-			//link to the current file: "<<id>>"
-			id = url.Url
-			doc = root.Name
-		case 2:
-			id = parts[1]
-			_, doc = filepath.Split(parts[0])
-		default:
-			fs.log.Error(ctx, "cannot rewrite url", slog.F("url", url))
-			return
-		}
+
 		file = fs.findIdMap(doc, id)
 		if file == "" {
 			fs.log.Error(ctx, "cannot rewrite url: idmap is not found", slog.F("url", url), slog.F("doc", root.Name))
@@ -203,7 +232,7 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 
 	fs.doc.Walk(func(b ast.Block, root *ast.Document) bool {
 		ctx := context.Background()
-		fs.log.Debug(ctx, "walker block", slog.F("block", b))
+		//fs.log.Debug(ctx, "walker block", slog.F("block", b))
 		if b == nil || utils.IsNil(b) {
 			fs.log.Error(ctx, "walker: nil block")
 		}
@@ -239,21 +268,27 @@ func (fs *FileSplitter) appendIdMap(doc string, id string, file string) {
 		//ignore empty IDs
 		return
 	}
-	if fs.idMaps[doc] == nil {
-		fs.idMaps[doc] = make(IdMap)
+	if fs.idMaps[fs.doc.Name] == nil {
+		fs.idMaps[fs.doc.Name] = make(IdMap)
 	}
-	fs.idMaps[doc][id] = file
-	if doc != fs.doc.Name {
-		//included document, need to duplicate record in the main document idmap table
-		fs.appendIdMap(fs.doc.Name, id, file)
-	}
-}
+	fs.idMaps[fs.doc.Name][id] = file
+
+	/*
+		if fs.idMaps[doc] == nil {
+			fs.idMaps[doc] = make(IdMap)
+		}
+		fs.idMaps[doc][id] = file
+		if doc != fs.doc.Name {
+			//included document, need to duplicate record in the main document idmap table
+			fs.appendIdMap(fs.doc.Name, id, file)
+		}
+	*/}
 
 func (fs *FileSplitter) findIdMap(doc string, id string) string {
 	ctx := context.Background()
 	if fs.idMaps[doc] == nil {
 		//try to read *.idmap file
-		data, err := ioutil.ReadFile(doc)
+		data, err := ioutil.ReadFile(doc + ".idmap")
 		if err != nil {
 			fs.log.Error(ctx, "cannot load idmap file", slog.F("err", err))
 			//no file, create emtpy map
@@ -261,7 +296,7 @@ func (fs *FileSplitter) findIdMap(doc string, id string) string {
 			return ""
 		}
 		var idm IdMap
-		err = yaml.Unmarshal(data, idm)
+		err = yaml.Unmarshal(data, &idm)
 		if err != nil {
 			fs.log.Error(ctx, "cannot load idmap file", slog.F("err", err))
 			//no file, create emtpy map
@@ -271,25 +306,27 @@ func (fs *FileSplitter) findIdMap(doc string, id string) string {
 
 		fs.idMaps[doc] = idm
 	}
-	file := fs.idMaps[doc][id]
-	if file == "" && doc != fs.doc.Name {
+	//file := fs.idMaps[doc][id]
+/*	if file == "" && doc != fs.doc.Name {
 		//included document could reference the main one, let's check it
 		return fs.findIdMap(fs.doc.Name, id)
-	}
+	}*/
 	return fs.idMaps[doc][id]
 }
 
-func (fs *FileSplitter) init() error {
+func (fs *FileSplitter) init(fillMapOnly bool) error {
 	fs.firstHeader = fs.findFirstHeader()
 	fs.fileName = fs.getNextFileName(fs.firstHeader)
 	fs.fileNames = append(fs.fileNames, fs.fileName)
-	fs.fillIdMap(true)
-	fs.fixUrls()
-	for k, m := range fs.idMaps {
-		err := fs.writeIdMap(k, m)
-		if err != nil {
-			return err
+	fs.fillIdMap(fillMapOnly)
+	if fillMapOnly {
+		for k, m := range fs.idMaps {
+			err := fs.writeIdMap(k, m)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	fs.fixUrls()
 	return nil
 }

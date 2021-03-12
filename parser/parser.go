@@ -337,7 +337,7 @@ func (p *Parser) parseHeader(id string) (*ast.Header, error) {
 	}
 	if p.tok.Type == token.STR {
 		h.Text = p.tok.Literal
-		p.log.Debug(context.Background(), "parseHeader", slog.F("token", p.tok))
+		//p.log.Debug(context.Background(), "parseHeader", slog.F("token", p.tok))
 
 		if !p.advance() {
 			return nil, fmt.Errorf("parseHeader: cannot advance")
