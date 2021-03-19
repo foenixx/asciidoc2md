@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"asciidoc2md/token"
 	"asciidoc2md/utils"
 	"fmt"
 	"strings"
@@ -92,6 +93,17 @@ func (b *Paragraph) StringWithIndent(indent string) string {
 	return strings.Replace(s, "container block", "paragraph", 1)
 }
 
+func (b *Paragraph)	IsSingleText() bool {
+	if len(b.Blocks) != 1 {
+		return false
+	}
+	_, ok := b.Blocks[0].(*Text)
+	if ok {
+		return true
+	}
+	return false
+}
+
 /*
 func (b *Paragraph) String() string {
 	return b.StringWithIndent("")
@@ -108,9 +120,18 @@ func NewParagraphFromStr(s string) *Paragraph {
 type ExampleBlock struct {
 	ContainerBlock
 	Options string
+	Collapsible bool
+	Delim *token.Token
 }
 
 var _ Walker = (*ExampleBlock)(nil)
+
+func (ex *ExampleBlock)	ParseOptions(opts string) {
+	ex.Options = opts
+	if strings.Contains(opts, "collapsible") {
+		ex.Collapsible = true
+	}
+}
 
 func (ex *ExampleBlock) StringWithIndent(indent string) string {
 	s := ex.ContainerBlock.StringWithIndent(indent)
@@ -123,6 +144,8 @@ type Header struct {
 	Level int
 	Text string
 	Id string
+	Float bool //not a header, just formatted like a header text
+	Options string
 }
 
 func (h *Header) StringWithIndent(indent string) string {
@@ -130,7 +153,11 @@ func (h *Header) StringWithIndent(indent string) string {
 	if h.Id != "" {
 		id = " [" + h.Id + "]"
 	}
-	return fmt.Sprintf("\n%sheader: %v, %v%v", indent, h.Level, h.Text, id)
+	var opts string
+	if h.Options != "" {
+		opts = ", " + h.Options
+	}
+	return fmt.Sprintf("\n%sheader: %v, %v%v%v", indent, h.Level, h.Text, id, opts)
 }
 
 func (h *Header) String() string {
@@ -234,8 +261,14 @@ func (sb *SyntaxBlock) SetOptions(options string) {
 		sb.Lang = "json"
 	case strings.Contains(options, "c#") || strings.Contains(options, "csharp"):
 		sb.Lang = "c#"
-	case strings.Contains(options, "sh") || strings.Contains(options, "shell"):
-		sb.Lang = "shell"
+	case strings.Contains(options, "js") || strings.Contains(options, "javascript"):
+		sb.Lang = "js"
+	case strings.Contains(options, "ts") || strings.Contains(options, "typescript"):
+		sb.Lang = "ts"
+	case strings.Contains(options, "sql"):
+		sb.Lang = "sql"
+	case strings.Contains(options, "json"):
+		sb.Lang = "json"
 	}
 	if strings.Contains(options, "macros+") {
 		// there are `pass:quotes[#some_text#]` highlighting

@@ -211,16 +211,23 @@ func (l *Lexer) next() *token.Token {
 		t := l.readHeaderOrExample()
 		return l.setToken(t)
 
-	case isListMarker(l.ch) && l.prevToken.Type == token.NEWLINE && utils.RuneIs(l.peekRune(), '.','*',' ','\t'):
+	case isListMarker(l.ch) && l.prevToken.Type == token.NEWLINE && utils.RuneIs(l.peekRune(), '.','*','-',' ','\t'):
 
 		// "* list" is a list
 		// "** list" is a list
 		// "*text" is not a list
 		// ".text" is not a list - this case is captured above in the block title case
+		// "****" is a sidebar delimiter
 		ch := l.ch
+		state := l.GetState()
 		m := l.readListMarker()
 		l.readWhitespace() //skip whitespace after
-		if ch == '*' {
+		if isNewLine(l.ch) {
+			//not a list marker
+			l.Rewind(state)
+			return l.tryString()
+		}
+		if ch == '*' || ch == '-' {
 			return l.setNewToken(token.L_MARK, l.line, m)
 		} else {
 			return l.setNewToken(token.NL_MARK, l.line, m)
@@ -240,6 +247,9 @@ func (l *Lexer) next() *token.Token {
 	case l.ch == ':' && l.prevToken.Type == token.NEWLINE:
 		//ignore asciidoc options ":keyword: text"
 		l.readLine()
+	case l.ch == '/' && l.prevToken.Type == token.NEWLINE && l.peekRune() == '/':
+		//comment line
+		return l.setNewToken(token.COMMENT, l.line, l.readLine())
 	case l.ch == 'a' && l.tableFlag && l.peekRune() == '|':
 		l.readRune()
 		l.readRune()
@@ -253,27 +263,30 @@ func (l *Lexer) next() *token.Token {
 	case l.ch == 0:
 		return l.setNewToken(token.EOF, l.line, "")
 	default:
-		pos1 := l.GetState()
-		tok := l.readString()
-		//we got stuck without new tokens
-		if l.position == pos1.position {
-			return l.setNewToken(token.ILLEGAL, l.line, "got stuck")
-		}
-
-		switch {
-		case tok.Type == token.BLOCK_DELIM:
-			// "----" syntax block
-			return l.setNewToken(token.SYNTAX_BLOCK, l.line, l.readSyntaxBlock(tok))
-		case tok.Type == token.TABLE:
-			//invert flag
-			l.tableFlag = !l.tableFlag
-			return l.setToken(tok)
-		default:
-			return l.setToken(tok)
-		}
-
+		return l.tryString()
 	}
 	return nil
+}
+
+func (l *Lexer) tryString() *token.Token {
+	pos1 := l.GetState()
+	tok := l.readString()
+	//we got stuck without new tokens
+	if l.position == pos1.position {
+		return l.setNewToken(token.ILLEGAL, l.line, "got stuck")
+	}
+
+	switch {
+	case tok.Type == token.BLOCK_DELIM:
+		// "----" syntax block
+		return l.setNewToken(token.SYNTAX_BLOCK, l.line, l.readSyntaxBlock(tok))
+	case tok.Type == token.TABLE:
+		//invert flag
+		l.tableFlag = !l.tableFlag
+		return l.setToken(tok)
+	default:
+		return l.setToken(tok)
+	}
 }
 
 
@@ -316,7 +329,7 @@ func (l *Lexer) readString() *token.Token {
 
 }
 
-var hrefRE = regexp.MustCompile(`^((?:https?:\/\/)\S+?)(?:\s|$|\[)`)
+var hrefRE = regexp.MustCompile(`^((?:(?:https?:\/\/)|link:)\S+?)(?:\s|$|\[)`)
 
 func (l *Lexer) lookupInlineKeyword(w string) (*token.Token, int) {
 	switch {
@@ -331,7 +344,11 @@ func (l *Lexer) lookupInlineKeyword(w string) (*token.Token, int) {
 	default:
 		matches := hrefRE.FindStringSubmatch(w)
 		if len(matches) == 2 {
-			return &token.Token{Type: token.URL, Literal: matches[1], Line: l.line}, len(matches[1])
+			lit := matches[1]
+			if strings.HasPrefix(lit, "link:") {
+				lit = lit[5:]
+			}
+			return &token.Token{Type: token.URL, Literal: lit, Line: l.line}, len(matches[1])
 		}
 	}
 	return nil, 0
@@ -358,26 +375,14 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 		return &token.Token{Type: token.BLOCK_DELIM, Line: l.line, Literal: "----"}, len(w)
 	case strings.HasPrefix(w, "image:"): //block image
 		return &token.Token{Type: token.BLOCK_IMAGE, Line: l.line, Literal: w}, len(w)
-	//case strings.HasPrefix(w,"image:"): //inline image
-	//	return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w}
+	case strings.HasPrefix(w,"****"):
+		return &token.Token{Type: token.SIDEBAR, Line: l.line, Literal: w}, len(w)
 	case w == "'''" && l.prevToken.Type == token.NEWLINE:
 		return &token.Token{Type: token.HOR_LINE, Line: l.line, Literal: w}, len(w)
 	case w == "//EOF" && l.prevToken.Type == token.NEWLINE:
 		//interrupt parsing here, for debugging sake
 		l.ch = 0
 		return &token.Token{Type: token.EOF, Line: l.line, Literal: w}, len(w)
-/*	case strings.HasPrefix(w,"image:"): //inline image
-		//find closing bracket
-		br := strings.Index(w, "]")
-		//cannot find closing bracket
-		if br == - 1 {
-			return &token.Token{Type: token.ILLEGAL, Literal: w, Line: l.line}, len(w)
-		}
-		return &token.Token{Type: token.INLINE_IMAGE, Line: l.line, Literal: w[:br+1]}, br + 1
-*/	//case l.tableFlag && w == "|": //column
-	//	return &token.Token{Type: token.COLUMN, Line: l.line, Literal: w}, len(w)
-	//case l.tableFlag && w == "a" && l.ch == '|': // 'a|' column
-	//	return &token.Token{Type: token.A_COLUMN, Line: l.line, Literal: "a|"}, 2
 	default:
 		//case w == "NOTE:" || w == "TIP:" || w == "IMPORTANT:" || w == "WARNING:" || w == "CAUTION:":
 		//admonition
@@ -418,10 +423,10 @@ func (l *Lexer) readSyntaxBlock(delim *token.Token) string {
 func (l *Lexer) readBlockOptions() *token.Token {
 	pos := l.position
 	opts := l.readLine()
-	//should be enclosed in brackets, opening "[" is skipped by the calling code
+	//should be enclosed in brackets
 	if opts[len(opts) - 1] == ']' {
 		// return options without brackets
-		return &token.Token{Type: token.BLOCK_OPTS, Line: l.line, Literal: opts[: len(opts) - 1]}
+		return &token.Token{Type: token.BLOCK_OPTS, Line: l.line, Literal: opts[1:len(opts) - 1]}
 	}
 	return &token.Token{Type: token.STR, Line: l.line, Literal: l.input[pos:l.position]}
 }
@@ -559,10 +564,10 @@ func isNewLine(ch rune) bool {
 
 
 func isWordDelimiter(ch rune) bool {
-	return isWhitespace(ch) || isNewLine(ch) || ch == 0 || ch == '[' || isColumn(ch)
+	return isWhitespace(ch) || isNewLine(ch) || ch == 0 || ch == '[' || isColumn(ch) || ch == '(' || ch=='<'
 }
 
 
 func isListMarker(ch rune) bool {
-	return ch == '*' || ch == '.'
+	return ch == '*' || ch == '.' || ch == '-'
 }

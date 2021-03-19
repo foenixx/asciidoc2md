@@ -277,10 +277,16 @@ some text`,
 		tests: []lt{
 			{token.STR, "text1 "}, {token.URL, "https://olle"},
 				{token.LINK_NAME, "text2"}, {token.NEWLINE, "\n"},
-			{token.STR, "text3"},
-			{token.EOF, ""},
+			{token.STR, "text3"}, {token.EOF, ""},
 		},
-
+	},
+	{
+		name: "comments",
+		input: "text1\n// text2\ntext3",
+		tests: []lt{
+			{token.STR, "text1 "}, {token.NEWLINE, "\n"},
+			{token.STR, "text3"}, {token.EOF, ""},
+		},
 
 	},
 
@@ -347,27 +353,8 @@ var dcase = lexerTestCase {
 }
 
 func TestDbg(t *testing.T) {
-	input := `
-
-.Порядок выполнения скриптов этапа
-[width="100%",options="header"]
-|====================
-| Время жизни | Условие выполнения | Порядок выполнения сценариев
-
-a| Запрос
-a| Завершение задания
-a| Сценарий валидации
-
-a|
-* Задание
-* Карточка
-a|
-* Закрытие карточки с сохранением
-* Завершение задания
-a|
-. Сценарий сохранения
-. Сценарий валидации
-|====================
+	input :=
+`В появившемся окне нажимаем кнопку *Открыть* image:image031.png[] и указываем путь к библиотеке карточек из сборки Configuration\Cards\Tessa.ms.cardlib (или Tessa.pg.cardlib, если установка выполняется для СУБД PostgreSQL). В окне импорта появятся карточки из выбранной библиотеки.
 `
 	//input := "NOTE: Admonition text"
 
@@ -378,10 +365,11 @@ a|
 
 func TestFile1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	input, err := ioutil.ReadFile("../data/test.adoc")
+	input, err := ioutil.ReadFile("../docs/beginners/BeginnersGuide.adoc")
 	if !assert.NoError(t, err) {
 		return
 	}
+
 	logLexems(t, string(input), logger)
 	//var tc lexerTestCase
 	//tc.name = "test.adoc"

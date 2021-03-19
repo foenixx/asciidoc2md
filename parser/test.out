@@ -1,10 +1,1479 @@
 
 document:
+  header: 1, Руководство начинающего разработчика на платформе TESSA
+  paragraph:
+    text: Syntellect 2021 <
+    link: (false,,https://www.mytessa.ru>)
+    text: vSyntellect TESSA {version}
+  image: image1.png
+  paragraph:
+    text: (C) Syntellect 2021
+%!s(MISSING)hor line
+  paragraph:
+    text: В этом руководстве описывается... работы с карточкой в системе.
+  paragraph:
+    text: Будут рассмотрены следующие возможности платформы:
   list begin: (0/true/.)
   item 1:
     container block:
       paragraph:
-        text: В плейсхолдере также можно чер...робное описание см. в разделе 
-        link: (true, Плейсхолдер {t:...}, Возможные параметры форматирования, п. 10,paramPlholder)
-        text: ).
+        text: Формирование схемы данных с ук... отдельной (новой) библиотеке.
+  item 2:
+    container block:
+      paragraph:
+        text: Создание типа карточки с задан...оить её контролы и валидаторы.
+  item 3:
+    container block:
+      paragraph:
+        text: Создание представлений. Мы соз...астроим для них права доступа.
+  item 4:
+    container block:
+      paragraph:
+        text: Включение типа карточки в типо...ой посредством правил доступа.
   list end
+  header: 2, Схема данных
+  paragraph:
+    text: Платформа Tessa разделяет опис...где они визуально расположены.
+  paragraph:
+    text: Ниже приведено руководство по ...* с указанием следующих полей:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: `Тема документа` – строка, длина не ограничена.
+  item:
+    container block:
+      paragraph:
+        text: `Номер` – число, в которое зап...ся порядковый номер документа.
+  item:
+    container block:
+      paragraph:
+        text: `Тип документа` – значение из перечисления:
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: _Incoming_ (входящий)
+      item:
+        container block:
+          paragraph:
+            text: _Outgoing_ (исходящий)
+      item:
+        container block:
+          paragraph:
+            text: _Internal_ (внутренний)
+      list end
+  item:
+    container block:
+      paragraph:
+        text: `Контрагент` – ссылка на стандартный справочник контрагентов.
+  list end
+  paragraph:
+    text: В типовом решении уже существу...лизующие любую бизнес-логику).
+  admonition: IMPORTANT
+    paragraph:
+      text: Для упрощения процесса обновле...ранять в отдельной библиотеке.
+  header: 3, Редактор схемы данных
+  paragraph:
+    text: Схема данных настраивается на ...твенно таблицы с их колонками.
+  image: image2.png
+  paragraph:
+    text: Для каждого проекта, разрабаты...дем использовать префикс `Ab`.
+  paragraph:
+    text: Первым делом создадим новую би...меню добавим новую библиотеку.
+  image: image2-1.png
+  paragraph:
+    text: Добавится новая библиотека со ...ем новое имя - `Ab Partition`:
+  image: image2-2.png
+  paragraph:
+    text: Новая библиотека создана, в не...се новые объекты схемы данных.
+  paragraph:
+    text: Создадим справочник типов доку...жно создавать двумя способами:
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: Как обычную таблицу, содержащу... и отображаемое в UI название.
+  item 2:
+    container block:
+      paragraph:
+        text: Как множество карточек, в данн...икатор есть у любой карточки).
+  list end
+  paragraph:
+    text: Для такого простого справочник...очник контрагентов `Partners`.
+  header: 3, Таблица с типом Перечисление
+  block title: Создание таблицы
+  paragraph:
+    text: Добавим таблицу типа `Перечисл... показано на изображении ниже.
+  image: image3.png
+  paragraph:
+    text: Обратите внимание, что в свойс...спользуется в типах карточек).
+  paragraph:
+    text: Флажок *Виртуальная* определяе...рениями произвольным образом. 
+  example block:
+    paragraph:
+      text: Например, это позволяет вывест...орые включены в департамент`. 
+    paragraph:
+      text: Т.е. таблица `Департаменты, в ...й секции по данным из таблиц).
+  paragraph:
+    text: Поле *Описание* может содержат... процедур, функций и миграций.
+  block title: Добавление колонок
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: Добавим в таблицу `AbDocumentT...контекстном меню выберем пункт
+        text: `Добавить физическую колонку`....е не должно быть равно `Null`.
+      image: image4.png
+  item 2:
+    container block:
+      paragraph:
+        text: Аналогично добавим строковую к...симальной длиной в 64 символа.
+      image: image5.png
+  list end
+  header: 3, Первичный ключ
+  paragraph:
+    text: Для упрощения работы со ссылка...данный индекс был кластерным. 
+    text: В секции "Индексируемые колонк...ку "+" для добавления колонки:
+  image: image6.png
+  paragraph:
+    text: В узле `Индексы` был автоматич...ом цвет строки станет зелёным.
+  image: image7.png
+  header: 2, Строки в таблице типа Перечисление
+  paragraph:
+    text: Закроем диалог сохранения, и п...а библиотека - `Ab Partition`.
+  paragraph:
+    text: Дальше следует выделить ячейку... вертикали клавишей `<Enter>`.
+  image: image9.png
+  paragraph:
+    text: Нажимаем `<Ctrl+S>`, чтобы сох...bDocumentTypes` в базе данных.
+  header: 3, Разновидности таблиц
+  paragraph:
+    text: Следующим шагом будет добавлен... таблица будет использоваться:
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: `Не указан` – это обыкновенная... карточек, файлов или заданий.
+  item 2:
+    container block:
+      paragraph:
+        text: `Карточки` – это таблица, кото... проекте, что мы покажем ниже.
+  item 3:
+    container block:
+      paragraph:
+        text: `Файлы` – аналогично для файлов.
+  item 4:
+    container block:
+      paragraph:
+        text: `Задания` – аналогично для зад... которыми "следит" платформа. 
+  list end
+  paragraph:
+    text: Для `Используется для типа`, о...задают один из трёх вариантов:
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: `Строковая` – это строковая се...томатически добавляет колонку:
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: `ID` – уникальный идентификато...тформой при создании карточки.
+      list end
+  item 2:
+    container block:
+      paragraph:
+        text: `Коллекционная` – это коллекци...этой секции добавляет колонки:
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: `ID` – уникальный идентификато...(для одной и той же карточки).
+      item:
+        container block:
+          paragraph:
+            text: `RowID` – это уникальный идент...ески создаётся первичный ключ.
+      list end
+  item 3:
+    container block:
+      paragraph:
+        text: `Иерархическая` – это иерархич...Добавляемые в таблицу колонки:
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: `ID` – уникальный идентификато...алогично секции `Collections`.
+      item:
+        container block:
+          paragraph:
+            text: `RowID` – уникальный идентифик...алогично секции `Collections`.
+      item:
+        container block:
+          paragraph:
+            text: `ParentRowID` – ссылка на `Row...ущая строка является корневой.
+      list end
+  list end
+  paragraph:
+    text: Для экземпляров карточек платф...стемную информацию по карточке
+    text: (такую, как дата последнего из... которых есть файлы и задания.
+  header: 3, Комплексные (ссылочные) колонки
+  paragraph:
+    text: Для таблицы `AbDocuments` подо...вно одна строка этой таблицы. 
+    text: Не забудьте для новой таблицы ...*библиотеку* - `Ab Partition`.
+  block title: Добавим колонки:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: Физическую колонку `Subject`, ... каждого документа (Not Null).
+  item:
+    container block:
+      paragraph:
+        text: Физическую колонку `Number`, Т...умента, 64-битное целое число.
+  item:
+    container block:
+      paragraph:
+        text: Комплексную колонку `Type`, Ти...ll` – ссылка на тип документа.
+  list end
+  image: image10.png
+  paragraph:
+    text: Комплексная колонка:
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: Ссылается на строку таблицы, з...шним ключом/With foreign key`.
+  item 2:
+    container block:
+      paragraph:
+        text: Содержит колонки со значениями...ержания ссылочной целостности.
+  item 3:
+    container block:
+      paragraph:
+        text: Содержит референсные колонки, ...отчётах) и контролах карточки.
+  item 4:
+    container block:
+      paragraph:
+        text: Содержит произвольные колонки,...ов это поле будет равно Null).
+  list end
+  paragraph:
+    text: Флажок *Ссылка на родителя/Is ...ку `RowID` этапа согласования.
+  block title: Далее:
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: Укажем таблицу _AbDocumentType...rence для заполнения значений.
+  item 2:
+    container block:
+      paragraph:
+        text: После того, как мы указали тип... в таблице _AbDocumentTypes_. 
+  list end
+  image: image11.png
+  block title: Аналогично добавим последнюю колонку:
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: `Partner`, Тип `Reference (Typ...анных, как допускающий `Null`.
+  item 2:
+    container block:
+      paragraph:
+        text: Далее аналогично добавляем в н...ваются как допускающие `Null`.
+  list end
+  image: image12.png
+  paragraph:
+    text: Сохраним схему `<Ctrl+S>`. Все...х/библиотек можно прочитать в 
+    link: (false,Руководстве Администратора,https://www.mytessa.ru/docs/AdministratorGuide/AdministratorGuide.html)
+  paragraph:
+    text: Теперь можно приступить к созд...а карточки на вкладке `Cards`.
+  header: 2, Типы карточек
+  paragraph:
+    text: Тип карточки описывает сущност...к _Документ_, _Контрагент_ или
+    text: _Настройки уведомлений_. Для типа определяется:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: способ хранения, а именно то, ...нных используются в этом типе;
+  item:
+    container block:
+      paragraph:
+        text: пользовательский интерфейс карточки, связанный с этими полями;
+  item:
+    container block:
+      paragraph:
+        text: валидаторы, определяющие необх...олнения поля и другие условия.
+  list end
+  paragraph:
+    text: Помимо типов карточек, редакто... соответствующему руководству.
+  header: 3, Свойства карточки
+  paragraph:
+    text: Выберем вкладку `Карточки` в п... `Card` и укажем его свойства:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: *Имя* – уникальное имя типа ка...ьзователь его не будет видеть.
+  item:
+    container block:
+      paragraph:
+        text: *Заголовок* – заголовок типа к...онов, доступных пользователю).
+  item:
+    container block:
+      paragraph:
+        text: *Группа* – название группы тип...ля стандартных типов карточек.
+  item:
+    container block:
+      paragraph:
+        text: *Формат дайджеста* - определяе...присутствует секция с номером)
+  item:
+    container block:
+      paragraph:
+        text: *Идентификатор типа* - идентиф...ля использования в расширениях
+  item:
+    container block:
+      paragraph:
+        text: Флажок *Административный* указ...тать не только администраторы.
+  item:
+    container block:
+      paragraph:
+        text: Флажок *Скрытый* позволяет скр...вка этого флажка не требуется.
+  item:
+    container block:
+      paragraph:
+        text: Флажок *Разрешить задания* раз...сти по согласованию документа.
+  item:
+    container block:
+      paragraph:
+        text: Флажок *Фиксировать действия* ...оздаваемой карточки документа.
+  item:
+    container block:
+      paragraph:
+        text: Флажок *Удалять в корзину* акт...тройку для карточки документа.
+  item:
+    container block:
+      paragraph:
+        text: Флажок *Единственный экземпляр... опция должна быть отключена. 
+  item:
+    container block:
+      paragraph:
+        text: Флажок *Загружать при инициали...рузки приложения Tessa Client.
+  list end
+  paragraph:
+    text: Ниже на изображении показано, ... все свойства созданного типа.
+  image: image13.png
+  header: 3, Секции карточки
+  paragraph:
+    text: Сохраним тип карточки (кнопка ...в него вложены следующие узлы:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: *Секции* – здесь указываются с...efault constraint, либо Null).
+  item:
+    container block:
+      paragraph:
+        text: *Вкладки* – здесь редактируетс...но вкладки, блоки и контролы. 
+  item:
+    container block:
+      paragraph:
+        text: *Валидаторы* – здесь указывают...а) всегда должно быть задано. 
+  list end
+  paragraph:
+    text: Выберем узел `Секции`, раскрое... списка в правой области окна.
+  image: image14.png
+  header: 3, Пользовательский интерфейс карточки
+  block title: Перейдём к узлу `Вкладки`:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: В верхней области отображает п...аивается в поле `Заголовок`). 
+  item:
+    container block:
+      paragraph:
+        text: Посредством кнопки `+` может б...ой отдельно настраивается UI. 
+  item:
+    container block:
+      paragraph:
+        text: Система справа от всех вкладок...ен флажок `Разрешить задания`.
+  list end
+  paragraph:
+    text: В нашем случае мы используем е...под другом размещаются блоки. 
+  paragraph:
+    text: Выберем из выпадающего списка ... кнопкой `+` справа от списка.
+  image: image15.png
+  paragraph:
+    text: Выберем добавленный блок в спи...чтобы установить его свойства.
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: *Заголовок* – это строка с заг...енный блок `Main information`.
+  item:
+    container block:
+      paragraph:
+        text: *Алиас* – это уникальное имя б...ию `Block1` можно не изменять.
+  item:
+    container block:
+      paragraph:
+        text: *Количество колонок* – количес...выводить контролы в 2 колонки.
+  item:
+    container block:
+      paragraph:
+        text: *Вертикальный интервал между к...яем значение по умолчанию `5`.
+  item:
+    container block:
+      paragraph:
+        text: *Горизонтальный интервал между...яем значение по умолчанию `5`.
+  item:
+    container block:
+      paragraph:
+        text: *Не оптимизировать колонки* – ...тому флажок можно не отмечать.
+  item:
+    container block:
+      paragraph:
+        text: *Скрывать блок* – скрывает бло...иваем флажок для нашего блока.
+  item:
+    container block:
+      paragraph:
+        text: *Скрывать заголовок* – скрывае...лажок для создаваемого блока. 
+  list end
+  paragraph:
+    text: Под списком блоков есть область с настройками вкладки:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: *Вертикальный интервал между б...ходит для большинства случаев.
+  item:
+    container block:
+      paragraph:
+        text: *Предпросмотр* – кнопки, отобр...даже не сохраняя тип карточки.
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: *Показать без расширений* – от... в редакторе типов свойствами.
+      item:
+        container block:
+          paragraph:
+            text: *Показать с расширениями* – от...крыть карточку в TessaClient. 
+      list end
+  list end
+  image: image16.png
+  header: 3, Контролы и их связь с секциями
+  paragraph:
+    text: В области редактирования блока...л, редактирующий целые числа).
+  image: image17.png
+  paragraph:
+    text: Аналогично свойствам блока, вы...число` все свойства подробнее.
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: *Заголовок* – заголовок контро...лом. Назовём контрол "Number".
+  item:
+    container block:
+      paragraph:
+        text: *Алиас* – имя контрола, которо...от свойства `Alias` для блока.
+  item:
+    container block:
+      paragraph:
+        text: *Поля карточки* – это поля кар...ны внутри комплексных колонок.
+  item:
+    container block:
+      paragraph:
+        text: *Формат поля* – поле, позволяю...овое значение обычным образом.
+  item:
+    container block:
+      paragraph:
+        text: *Всплывающая подсказка* – стро.... Оставим это свойство пустым.
+  item:
+    container block:
+      paragraph:
+        text: *Поле не заполнено* – текстово...quired` и `Field is required`.
+  item:
+    container block:
+      paragraph:
+        text: *Минимальное значение* – миним...ли ограничений быть не должно.
+  item:
+    container block:
+      paragraph:
+        text: *Максимальное значение* – по а...может быть введено в контроле.
+  item:
+    container block:
+      paragraph:
+        text: *Цвет текста* - цвет отображаемого текста.
+  item:
+    container block:
+      paragraph:
+        text: *Стиль текста* - стиль шрифта отображаемого текста.
+  item:
+    container block:
+      paragraph:
+        text: *Отметить как обязательное* - ...к обязательное для заполнения.
+  item:
+    container block:
+      paragraph:
+        text: *Скрывать поле* - скрыть поле.
+  item:
+    container block:
+      paragraph:
+        text: *Только для чтения* – признак ...ия для процесса согласования).
+  item:
+    container block:
+      paragraph:
+        text: *Скрывать заголовок* – скрывае...аданного в свойстве заголовок.
+  item:
+    container block:
+      paragraph:
+        text: *Растягивать по ширине* – указ...ко одну колонку в этой строке.
+  list end
+  paragraph:
+    text: Укажем для контрола `Заголовок...лнены как на изображении ниже:
+  image: image18.png
+  paragraph:
+    text: Добавим контрол `Type` для вво...чников по кнопке с троеточием.
+  paragraph:
+    text: Для контрола также укажем заго...ого типа (колонка `TypeName`).
+  image: image19.png
+  paragraph:
+    text: Предпросмотр типа карточки, вы...`, покажет следующую проблему:
+  image: image20.png
+  paragraph:
+    text: Несмотря на то, что контрол `T...Tessa выступают представления.
+  paragraph:
+    text: Подходящего представления для ...ранить всё` на верхней панели)
+    text: и переключите вкладку `Предста... редактирования представлений.
+  header: 2, Представления
+  paragraph:
+    text: Представления в Tessa являются...ся на вкладке `Представления`.
+  image: image21.png
+  header: 3, Свойства представления
+  paragraph:
+    text: Добавим представление, использ...справа от кнопки обновления). 
+  block title: Для созданного представления укажем:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: *Алиас* - уникальный алиас пре...едставление `AbDocumentTypes`.
+  item:
+    container block:
+      paragraph:
+        text: *Имя* - отображаемое имя предс...м. Например, "Document types".
+  item:
+    container block:
+      paragraph:
+        text: *Группа* - это группа, использ...ме данных и в типах карточек. 
+  list end
+  paragraph:
+    text: Нажмём кнопку `Сохранить всё`, чтобы сохранить представление.
+  image: image22.png
+  paragraph:
+    text: Представление – источник табли... сотруднику или департаменту).
+  block title: Рассмотрим другие свойства представления, которые задаются в многострочных полях ввода:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: *Метаданные* – метаинформация с указанием параметров пейджинга
+        text: (постраничного отображения), н... и руководстве администратора.
+  item:
+    container block:
+      paragraph:
+        text: *Запрос* – шаблонизируемый SQL...оторой выполняется сортировка.
+  item:
+    container block:
+      paragraph:
+        text: *Описание* – это произвольное ...пользует значение этого поля. 
+  list end
+  header: 3, Метаинформация представления и шаблонизируемый запрос
+  paragraph:
+    text: Укажем следующие значения в полях Метаданные и Запрос:
+  image: image23.png
+  syntax block: 
+#view(DefaultSortColumn: DocT...e, OpenOnDoubleClick: false)
+
+  syntax block: 
+select
+    t.ID as DocTypeID... t.Name)
+order by #order_by
+
+  block title: Рассмотрим поле `Метаданные`:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: `#view` указывает общие настройки для представления, такие как:
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: `DefaultSortColumn` – алиас ко...выборе из выпадающего списка);
+      item:
+        container block:
+          paragraph:
+            text: `DefaultSortDirection` – напра...овки для этой колонки ("asc" –
+            text: по возрастанию, "desc" – по убыванию);
+      item:
+        container block:
+          paragraph:
+            text: `Paging` – пейджинг, т.е. режи... "no" – пейджинг отсутствует).
+      list end
+  item:
+    container block:
+      paragraph:
+        text: `#column` описывает колонку, возвращаемую в запросе SELECT. 
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: `Alias` – это алиас колонки, т...вращает SELECT в SQL-запросе. 
+      item:
+        container block:
+          paragraph:
+            text: Для колонки `DocTypeID` мы ука...торая выводится пользователю. 
+      item:
+        container block:
+          paragraph:
+            text: `Caption` определяет имя колон...анавливается заголовок `Name`.
+      item:
+        container block:
+          paragraph:
+            text: `SortBy` – это выражение, кото...ется системой автоматически). 
+      list end
+  item:
+    container block:
+      paragraph:
+        text: `#param` описывает параметр поиска (фильтрации) представления. 
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: `Alias` – алиас параметра, кот... Reference с автодополнением. 
+      item:
+        container block:
+          paragraph:
+            text: `Caption` – название параметра...выбора параметров фильтрации. 
+      item:
+        container block:
+          paragraph:
+            text: `Hidden` позволяет скрыть пара...ставлений из расширений и др. 
+      item:
+        container block:
+          paragraph:
+            text: `Multiple: true` указывает, чт...ng ИЛИ Name равен Outgoing`". 
+      list end
+  item:
+    container block:
+      paragraph:
+        text: `#reference` позволяет указать...но открыть по двойному клику. 
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: `ColPrefix` – префикс алиасов ... `DocTypeName` с именем типа. 
+      item:
+        container block:
+          paragraph:
+            text: `RefSection` – разделённый про...лочных контролах `Reference`. 
+          example block:
+            paragraph:
+              text: Например, ссылочная колонка "A...ользования такой возможности. 
+      item:
+        container block:
+          paragraph:
+            text: `DisplayValueColumn` – алиас к...ние по другим полям карточки. 
+      item:
+        container block:
+          paragraph:
+            text: `IsCard` – признак того, что с...ия, поэтому указываем "false".
+      item:
+        container block:
+          paragraph:
+            text: `OpenOnDoubleClick` – признак ...то указываем значение "false".
+      list end
+  list end
+  header: 3, Отладка представления
+  paragraph:
+    text: В поле `Запрос` мы записали SQ...но в правом верхнем углу окна.
+  image: image24.png
+  paragraph:
+    text: Кнопка на верхней панели (`Сфо...ые из них являются системными:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: *Name* – это наш параметр филь...анных в контроле `Reference`. 
+  item:
+    container block:
+      paragraph:
+        text: *Текущий сотрудник* – это сист...адания текущего пользователя. 
+  item:
+    container block:
+      paragraph:
+        text: *Locale* – идентификатор культ... результате запроса `Запрос`. 
+  list end
+  paragraph:
+    text: Ниже в группе `Сортировка` ука...Name` с именем типа документа)
+    text: и направление сортировки (по в...нно эти значения были выбраны.
+  paragraph:
+    text: В сгенерированном SQL-запросе ...entTypes.Name` по возрастанию.
+  paragraph:
+    text: Укажем слева в параметре `Name...е `In` для оператора сравнения
+    text: `начинается с` кликнем по имен...енерации и выполнения запроса.
+  image: image25.png
+  paragraph:
+    text: Результаты такого же запроса, ...оторые содержат значение "in":
+  image: image26.png
+  paragraph:
+    text: Параметр `#param(Name, t.Name)...лжно содержать подстроку `in`.
+  header: 3, Предпросмотр представления
+  paragraph:
+    text: Теперь переключимся на режим "...ателя в дереве рабочего места.
+  image: image27.png
+  paragraph:
+    text: Кнопка фильтра (слева от кнопк...e` в метаинформации `#param`).
+  image: image28.png
+  paragraph:
+    text: После выбора значения текущие ... в области над представлением.
+  image: image29.png
+  paragraph:
+    text: Именно так пользователь будет ...умента через кнопку троеточия.
+  header: 3, Права доступа на представление
+  paragraph:
+    text: Для представления осталось нас... отсутствующему представлению.
+  paragraph:
+    text: По умолчанию список ролей пуст...` для его добавления в список.
+  image: image30.png
+  header: 3, Связь представления со ссылочным контролом
+  paragraph:
+    text: Теперь сохраним представление ...р типа карточки `AbDocument`. 
+  block title: Свяжем представление с контролом для ввода типа документа, указав его свойства:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: *Алиас представления* – алиас ...а или по кнопке с троеточием).
+  item:
+    container block:
+      paragraph:
+        text: *Алиас параметра* – алиас пара...ыводятся в выпадающем списке. 
+      image: image31.png
+  item:
+    container block:
+      paragraph:
+        text: *Алиас представления выпадающе... "AbDocumentTypes" в это поле.
+  item:
+    container block:
+      paragraph:
+        text: *Выпадающий список* – флажок, ... и задают алиас представления.
+      image: image32.png
+  item:
+    container block:
+      paragraph:
+        text: *Разрешить открывать ссылки* –...точка, то снимем этот флажок. 
+  list end
+  paragraph:
+    text: Свойства контрола будут выглядеть следующим образом:
+  image: image33.png
+  paragraph:
+    text: Если в форме нажать на кнопку ...выведено такое предупреждение:
+  image: image34.png
+  paragraph:
+    text: Это означает, что или нет ни о...х представлений с фильтрацией.
+  paragraph:
+    text: Но мы рассмотрим, как добавить...и нажатии кнопки с троеточием.
+  header: 2, Рабочие места
+  paragraph:
+    text: Рабочее место – это дерево с п... и связанные как master-detail
+    text: (например, см. отчёты в папке ...при открытии окна TessaClient.
+  paragraph:
+    text: Например, вот окно TessaClient...ыбрана вкладка "Пользователь".
+  image: image35.png
+  header: 3, Редактор рабочих мест
+  paragraph:
+    text: Узлы в отображаемом слева дере... *Рабочие места* в TessaAdmin.
+  image: image36.png
+  paragraph:
+    text: В этом редакторе слева добавля...но для каждого рабочего места.
+  paragraph:
+    text: Рабочие места "Администратор" ...в и отдельное для архивариуса.
+  paragraph:
+    text: Создадим рабочее место "Docume...Свойства" в правой части окна.
+  header: 3, Свойства рабочего места и права доступа
+  image: image37.png
+  paragraph:
+    text: Укажем роль "Все сотрудники", ...место кнопкой "Сохранить всё".
+  image: image38.png
+  header: 3, Узел с представлением
+  paragraph:
+    text: Теперь в рабочее место надо добавить узел с представлением
+    text: `AbDocumentTypes` для выбора т...ку `Создать -> Представление`.
+  image: image39.png
+  paragraph:
+    text: В правой части окна расположен...tTypes" из выпадающего списка.
+  image: image40.png
+  paragraph:
+    text: Большинство необходимых полей заполнилось автоматически:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: *Id* – это уникальный идентифи... и использовать в расширениях.
+  item:
+    container block:
+      paragraph:
+        text: *Заголовок* – имя узла, которо...ее значение "Document types". 
+  item:
+    container block:
+      paragraph:
+        text: *Значок* – иконка слева от узл...ую иконку из списка доступных.
+  item:
+    container block:
+      paragraph:
+        text: *Развернутый значок* – иконка,...связаны с этим представлением.
+  item:
+    container block:
+      paragraph:
+        text: *Представление* – это алиас пр...очередь выбрать представление.
+  item:
+    container block:
+      paragraph:
+        text: *Режим отображения* – режим от...ов, поиска карточек и т.п.). +
+        text: "Режим просмотра" работает обр... в главном окне TessaClient. +
+        text: "Режим всегда" показывает узел в обоих случаях.
+  item:
+    container block:
+      paragraph:
+        text: *Режим выделения* -
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: Строка - в представлении при к... строку выделяется вся строка.
+      item:
+        container block:
+          paragraph:
+            text: Ячейка - в представлении при к...а, выбранная в строке, ячейка.
+      list end
+  item:
+    container block:
+      paragraph:
+        text: *Отображать узел* – задаёт, от...зел "Развёрнутым" по умолчанию
+      paragraph:
+        text: или  "Свёрнутым". Если у узла ...лов, то свойство игнорируется.
+  item:
+    container block:
+      paragraph:
+        text: *Отображение счетчика строк* –...строек указывать не требуется.
+  item:
+    container block:
+      paragraph:
+        text: *Где отображать узел*:
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: Везде - представление будет от...lient, так и в тонком клиенте.
+      item:
+        container block:
+          paragraph:
+            text: Tessa Client - представление б...ажаться только в Tessa Client.
+      item:
+        container block:
+          paragraph:
+            text: Тонкий клиент - представление ...аться только в тонком клиенте.
+      list end
+  item:
+    container block:
+      paragraph:
+        text: Область *Расширения* позволяет... логику взаимодействия с ними.
+  item:
+    container block:
+      paragraph:
+        text: Область *Параметры* позволяет ...азличные значения параметров. 
+  list end
+  paragraph:
+    text: Следует иметь в виду, что даже...ром в правах типового решения.
+  header: 3, Предпросмотр рабочего места
+  paragraph:
+    text: Сохраним изменения кнопкой "Со...абочее место для пользователя.
+  image: image41.png
+  paragraph:
+    text: Как видим, узел "Document type...м не размещена в области узла.
+  header: 3, Размещение представлений в узле
+  paragraph:
+    text: Чтобы настроить такую связь, п...cument types" в списке справа:
+  image: image42.png
+  paragraph:
+    text: И перетащим как drag&drop в область размещения слева:
+  image: image43.png
+  paragraph:
+    text: В результате должно получиться следующее:
+  image: image44.png
+  paragraph:
+    text: Область размещения позволяет н...рованные во вкладках по типам.
+  paragraph:
+    text: Перейдём в режим "Просмотр" и ...ительно отображается для узла.
+  image: image45.png
+  paragraph:
+    text: Теперь при нажатии кнопки с тр...`RefSection: AbDocumentTypes`.
+  image: image46.png
+  paragraph:
+    text: Если по-прежнему отображается ...очно перезапустить TessaAdmin.
+  header: 2, Представления с карточками
+  paragraph:
+    text: В карточке документа `AbDocume...ыть размещено в рабочем месте.
+  header: 3, Метаинформация представления
+  paragraph:
+    text: Перейдём на вкладку "Представл...им представление "AbDocuments"
+    text: следующего вида:
+  image: image47.png
+  syntax block: 
+#view(DefaultSortColumn: DocN...Type)
+#subset(Alias: Count)
+
+  paragraph:
+    text: Рассмотрим, что указывается в метаинформации:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: Через #view представление *сор...окумента) по убыванию номеров.
+  item:
+    container block:
+      paragraph:
+        text: Указываем, что представление в...егистрировано несколько тысяч.
+  item:
+    container block:
+      paragraph:
+        text: Для пейджинга указываем назван...е количество страниц `1 / 1`. 
+      image: image48.png
+      admonition: IMPORTANT
+        paragraph:
+          text: Если указан сабсет `RowCountSu...ком всех доступных документов.
+  item:
+    container block:
+      paragraph:
+        text: Для каждой *отображаемой или с...трок в таблице `AbDocuments`).
+  item:
+    container block:
+      paragraph:
+        text: `#param` позволяет задать как ...me`, а также других типов SQL.
+  item:
+    container block:
+      paragraph:
+        text: `#param` позволяет добавлять *...стве `Type` указывается `int`.
+      list begin: (1/false/**)
+      item:
+        container block:
+          paragraph:
+            text: В `#autocomplete` указывается:
+          list begin: (2/false/***)
+          item:
+            container block:
+              paragraph:
+                text: Алиас представления с типами д...надо дополнить `Param: Name`. 
+          item:
+            container block:
+              paragraph:
+                text: Далее нужно задать колонку в р...о представления `AbDocuments`.
+          item:
+            container block:
+              paragraph:
+                text: Свойство `PopupColumns` перечи...индекс отсчитывается от нуля).
+          item:
+            container block:
+              paragraph:
+                text: Свойство `RefSection` определя... ссылочном контроле карточки).
+          list end
+      item:
+        container block:
+          paragraph:
+            text: `#dropdown` нужен только для н...олонка `TypeName`(индекс "1").
+      list end
+  item:
+    container block:
+      paragraph:
+        text: `#param` с алиасом `Partner` о...вести через выпадающий список.
+  item:
+    container block:
+      paragraph:
+        text: `#param` с алиасом `PartnerNam...содержащим какую-то подстроку.
+  item:
+    container block:
+      paragraph:
+        text: `#reference` с префиксом `Doc`...а ту же секцию `AbDocuments`).
+  item:
+    container block:
+      paragraph:
+        text: `#reference` с префиксом `Type...умента*, который в нём указан.
+      image: image49.png
+  item:
+    container block:
+      paragraph:
+        text: `#reference` с префиксом `Part...до перезапустить TessaAdmin). 
+      image: image50.png
+  list end
+  header: 3, Сабсеты
+  paragraph:
+    text: Сабсеты определяют режим выбор...образить значения как подузлы:
+  image: image51.png
+  paragraph:
+    text: Сабсет по типу документа "Types" выполняется с двумя значениями
+    text: "Incoming" и "Outgoing" (т.к. ...яются в узел с представлением.
+  image: image52.png
+  paragraph:
+    text: Результаты выполнения для пред... сабсета "Types" выглядят так:
+  image: image53.png
+  paragraph:
+    text: При выборе значения для предст...нке `CaptionColumn: TypeName`.
+  header: 3, Шаблонизируемый запрос представления
+  paragraph:
+    text: Прежде чем подробнее описать с...м код запроса в поле "Запрос".
+  syntax block: 
+select
+    #if(Normal) {    ...) {
+order by t2.TypeName
+}
+
+  paragraph:
+    text: <1> Мы видим использование опе...скобок `#if(...)` выполняется.
+    text: <2> Вторые фигурные скобки (са...руглых скобках не выполняется.
+    text: <3> `*#if(Normal)*` выполняетс...обычном режиме (без сабсетов).
+    text: <4> `*#if(SubsetAlias)*` выпол...няется в режиме сабсета Count.
+    text: <5> `*#if(PageOffset)*` выполн...Number" с номером документа.  
+  paragraph:
+    text: Посмотреть, как выглядит запро...ным сабсетом, можно на вкладке
+    text: "Отладка" в свойстве "Выбранное подмножество".
+  image: image54.png
+  paragraph:
+    text: Например, так выглядит запрос ...документа) как "меньше чем 5".
+  syntax block: 
+DECLARE @NUMBER_1 bigint;
+SE...t.Number < @NUMBER_1))
+) t2
+
+  paragraph:
+    text: В результате выводится количество:
+  image: image55.png
+  paragraph:
+    text: А при выполнении представления...сабсета получаем такой запрос:
+  syntax block: 
+DECLARE @NUMBER_1 bigint;
+SE...PAGELIMIT_1)
+order by t2.rn
+
+  paragraph:
+    text: В запрос система автоматически...и бы его указал пользователь).
+  paragraph:
+    text: Результат запроса выглядит так:
+  image: image56.png
+  paragraph:
+    text: Система скрывает из этого резу...т пользователю в виде таблицы.
+  image: image57.png
+  paragraph:
+    text: Теперь не забудем указать роль...ватели получили к нему доступ.
+  image: image58.png
+  header: 3, Настройка узла рабочего места с сабсетом
+  paragraph:
+    text: Сохраним представление и добав...лок через кнопку с троеточием.
+  image: image59.png
+  paragraph:
+    text: После этого не забудем перетащ..." в правой верхней части окна.
+  image: image60.png
+  paragraph:
+    text: Для удобства использования дав...и кликнем на сабсет "By type".
+  image: image61.png
+  paragraph:
+    text: Кликнем по добавленному узлу.
+  image: image62.png
+  paragraph:
+    text: В области справа "Свойства" ук...ения узла с сабсетом в дереве.
+  image: image63.png
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: Узел можно переименовать, указав ему другой `Заголовок`.
+  item:
+    container block:
+      paragraph:
+        text: Узел можно скрыть `Режим отобр... этого делать для нашего узла.
+  item:
+    container block:
+      paragraph:
+        text: Узел можно добавлять сразу в р...а для удобства использования. 
+  list end
+  paragraph:
+    text: Посмотрим, как настройка `Отоб...пользователь добавляет сабсет.
+  image: image64.png
+  paragraph:
+    text: И он сразу добавляется в развёрнутом виде:
+  image: image65.png
+  paragraph:
+    text: В то время, как без этой настр...ета или один из его подузлов).
+  image: image66.png
+  paragraph:
+    text: Итак, мы настроили представлен...жет увидеть его в TessaClient.
+  image: image67.png
+  header: 2, Завершение настройки карточки
+  paragraph:
+    text: Теперь перейдём на вкладку "Ка...ку типа карточки `AbDocument`.
+  header: 3, Дополнительные контролы
+  paragraph:
+    text: Добавим контрол с заголовком "...т иметь значения по умолчанию.
+  image: image68.png
+  paragraph:
+    text: И добавим строковый контрол `S...рок: 3` и `Максимум строк: 6`.
+  image: image69.png
+  paragraph:
+    text: Следующим шагом будет указание... способом являются валидаторы.
+  header: 3, Валидаторы для обязательных полей
+  paragraph:
+    text: Валидатор определяет, что конк...лняться именно для этого поля.
+  paragraph:
+    text: Создание валидатора выполняетс...ложен в узел с типом карточки.
+  image: image70.png
+  paragraph:
+    text: В этой версии платформы существует три типа валидаторов:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: `Непустая секция` определяет, ...одержит хотя бы одно значение.
+  item:
+    container block:
+      paragraph:
+        text: `Непустое поле` определяет, чт...) содержит непустое значение. 
+  item:
+    container block:
+      paragraph:
+        text: `Уникальное поле` определяет, ... содержит уникальное значение.
+  list end
+  paragraph:
+    text: Добавим валидатор на поле, рас...пользователя будет непонятным.
+  image: image71.png
+  paragraph:
+    text: Аналогично добавим валидаторы ...тов не указывается контрагент.
+  image: image72.png
+  image: image73.png
+  paragraph:
+    text: Если мы сейчас откроем окно пр... поле нельзя оставлять пустым.
+  image: image74.png
+  header: 3, Создание экземпляра карточки
+  paragraph:
+    text: Теперь, наконец, настройка тип...бы создать экземпляр карточки.
+  paragraph:
+    text: Откроем правую боковую панель ...ожество карточек для создания.
+  image: image75.png
+  paragraph:
+    text: Если посмотреть на содержимое ...озможно, другие типы карточек.
+  image: image76.png
+  paragraph:
+    text: Нажав на плитку "Document", ка...ра в редакторе типов карточек.
+  image: image77.png
+  paragraph:
+    text: Если карточку сразу же сохрани...е валидатора `Error message`).
+  image: image78.png
+  paragraph:
+    text: Закрыв окно, пользователь увид...рые исчезают после заполнения.
+  image: image79.png
+  paragraph:
+    text: Заполним поля и сохраним карточку.
+  image: image80.png
+  paragraph:
+    text: Заголовок вкладки с карточкой ... обновляться запросами UPDATE.
+  paragraph:
+    text: Если в заголовке вкладки должн...ть в руководстве разработчика.
+  header: 3, Открытие карточки из представления
+  paragraph:
+    text: Закроем карточку и обновим пре...олько что созданной карточкой.
+  image: image81.png
+  paragraph:
+    text: Её можно открыть двойным кликом по строке представления.
+  image: image82.png
+  paragraph:
+    text: Обратите внимание, что заголов...теперь "1", т.е. значение поля
+    text: "Number", хотя мы не писали ра...ют текст с названием карточки.
+  block title: Название карточки из ссылки
+  example block:
+    paragraph:
+      text: Взглянем ещё раз на `#referenc...и представления `AbDocuments`.
+    syntax block: 
+#reference(ColPrefix: Doc, Re...ue, OpenOnDoubleClick: true)
+
+    paragraph:
+      text: Была открыта карточка именно п...fier` (`Guid` в схеме данных).
+    paragraph:
+      text: А заголовок вкладки с карточкой предоставила колонка
+      text: `DisplayValueColumn: DocNumber...и, по которой дважды кликнули.
+  header: 3, История действий
+  paragraph:
+    text: Теперь откроем историю действи...ствий" в левой боковой панели.
+  image: image83.png
+  paragraph:
+    text: История действий – это и есть ...дставления по двойному клику).
+  image: image84.png
+  paragraph:
+    text: У карточки имя "< имя неизвест...ки выглядит следующим образом:
+  image: image85.png
+  paragraph:
+    text: Здесь для строковой секции AbD...которые заполнил пользователь.
+  header: 3, Структура карточки
+  paragraph:
+    text: Структура карточки показывает ...азываются структурой карточки.
+  image: image86.png
+  paragraph:
+    text: По этим данным также видно, ка...й панели в карточке документа.
+  image: image87.png
+  paragraph:
+    text: Если в поле `Partner` указать ...т выглядеть следующим образом.
+  image: image88.png
+  paragraph:
+    text: Здесь отображается не полная с... заполняются в полях карточки.
+  example block:
+    header: 4, Отображение колонок представления на поля карточки, float
+    list begin: (0/true/.)
+    item 1:
+      container block:
+        paragraph:
+          text: У полей комплексной колонки `P...вместо `PartnerName` – `Name`.
+    item 2:
+      container block:
+        paragraph:
+          text: В представлении `Partners` вып... те же суффиксы `ID` и `Name`.
+    item 3:
+      container block:
+        paragraph:
+          text: Для колонок с одинаковыми суфф...erID", т.к. префиксы совпали).
+    list end
+  paragraph:
+    text: Чтобы посмотреть все поля в ст... `Карточка перед сохранением`.
+  header: 3, Удаление карточки и её восстановление
+  paragraph:
+    text: Теперь посмотрим, как происход...ока с карточкой будет удалена.
+  paragraph:
+    text: Удалим карточку:
+  image: image89.png
+  paragraph:
+    text: История действий по карточке с...рабочем месте "Администратор".
+  image: image90.png
+  paragraph:
+    text: Собственно, удалённая карточка...тавлении "Удаленные карточки".
+  image: image91.png
+  paragraph:
+    text: Открыв удалённую карточку по д...е определена функция `Digest`.
+  paragraph:
+    text: Система автоматически удаляет ...овной папки сервиса `Chronos`.
+  image: image92.png
+  header: 2, Типовое решение
+  paragraph:
+    text: Теперь, когда карточка настрое...мешает совместить оба подхода.
+  paragraph:
+    text: Подробную информацию по настро...ами тип карточки `AbDocument`.
+  header: 3, Секция DocumentCommonInfo
+  paragraph:
+    text: В типовом решении есть специал...з определённых в секции полей.
+  paragraph:
+    text: В секции `AbDocuments` мы опре...entCommonInfo` в тип карточки.
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: Откроем схему данных (вкладка ...сохраним схему кнопкой "Save".
+      image: image93.png
+  item 2:
+    container block:
+      paragraph:
+        text: Теперь перейдём на вкладку "Ка...к, которое достаточно закрыть.
+      image: image94.png
+  item 3:
+    container block:
+      paragraph:
+        text: Выберем узел "Секции", разверн...fo и отметим флажками колонки:
+      list begin: (1/false/*)
+      item:
+        container block:
+          paragraph:
+            text: `CardType` – ссылка на тип кар...ё достаточно отметить флажком.
+      item:
+        container block:
+          paragraph:
+            text: `Partner` – ссылка на контрагента.
+      item:
+        container block:
+          paragraph:
+            text: `Subject` – строковое поле с темой документа.
+      item:
+        container block:
+          paragraph:
+            text: `Number, FullNumber, Sequence,...ация документов не требуется. 
+          image: image96.png
+          paragraph:
+            text: А также снимем флажки с колоно...`Number` в узле Ab/AbDocuments
+      list end
+  item 4:
+    container block:
+      paragraph:
+        text: Перейдём в узел "Вкладки". Для контрола "Partner" укажем поле
+        text: `DocumentCommonInfo.Partner`.
+      image: image97.png
+  item 5:
+    container block:
+      paragraph:
+        text: Для контрола "Subject" укажем ... `DocumentCommonInfo.Subject`.
+      image: image98.png
+  item 6:
+    container block:
+      paragraph:
+        text: Контрол "Number" удалим, вмест...х" справа от списка контролов.
+      image: image99.png
+  item 7:
+    container block:
+      paragraph:
+        text: Далее требуется изменить валид...этому данный валидатор удалим.
+      image: image100.png
+  list end
+  paragraph:
+    text: Теперь можно убедиться в предп...ь тип кнопкой "Сохранить всё".
+  image: image101.png
+  header: 3, Адаптация представления под секцию DocumentCommonInfo
+  paragraph:
+    text: Однако, открыв представление "...`, которые теперь отсутствуют.
+  image: image102.png
+  paragraph:
+    text: Поэтому откроем представление ...то его уже может использовать.
+  syntax block: 
+select
+    #if(Normal) {
+  ...) {
+order by t2.TypeName
+}
+
+  paragraph:
+    text: Для оптимизации запроса при на...а предпросмотра типа карточки.
+  image: image103.png
+  paragraph:
+    text: Именно такой идентификатор дол... фильтрацию по `d.CardTypeID`.
+  paragraph:
+    text: Не забудем также изменить сорт...ocumentCommonInfo` в запросе).
+  syntax block: 
+#column(Alias: DocNumber, Caption: Number, SortBy: d.Number)
+
+  paragraph:
+    text: Теперь представление корректно...ежимах "Отладка" и "Просмотр".
+  header: 3, Настройки типового решения
+  paragraph:
+    text: Следующим шагом является добав...возможностей типового решения.
+  paragraph:
+    text: Откроем карточку настроек типо... из TessaClient, выбрав плитку
+    text: "Типовое решение" внутри плитк...йки" на правой боковой панели.
+  image: image104.png
+  paragraph:
+    text: Откроется карточка настроек типового решения.
+  image: image105.png
+  paragraph:
+    text: В ней кнопкой "Добавить" надо ...наш тип карточки `AbDocument`.
+  image: image106.png
+  list begin: (0/true/.)
+  item 1:
+    container block:
+      paragraph:
+        text: Флажок *Использовать типы доку...по настройке типового решения.
+  item 2:
+    container block:
+      paragraph:
+        text: Включим возможность использова...к *Использовать согласование*.
+  item 3:
+    container block:
+      paragraph:
+        text: Выберем в поле *Автоматическое...й номер будет дерезервирован).
+  item 4:
+    container block:
+      paragraph:
+        text: Поле *Выделять из последовател...зываться "AbDocumentSequence".
+  item 5:
+    container block:
+      paragraph:
+        text: В поле *Формат полного номера*...002" для числового номера "2".
+  item 6:
+    container block:
+      paragraph:
+        text: Поставим флажок *Использовать ...нему содержат проектный номер.
+  item 7:
+    container block:
+      paragraph:
+        text: Укажем *Автоматическое выделен...ельности по заданным правилам.
+  item 8:
+    container block:
+      paragraph:
+        text: В *Выделять из последовательно...мер, "AbDocumentsRegSequence".
+  item 9:
+    container block:
+      paragraph:
+        text: В *Формат полного номера* укаж...пример, `+++AbReg{00000n}+++`.
+  item 10:
+    container block:
+      paragraph:
+        text: Поставим флажок *Использовать ...вершения родительской задачи. 
+  list end
+  image: image107.png
+  paragraph:
+    text: Закроем строку и сохраним карточку настроек.
+  header: 3, Правила доступа к карточке
+  paragraph:
+    text: Остался последний шаг перед ис...ения для каких ролей доступны.
+  paragraph:
+    text: Представление "Правила доступа...нутри папки "Типовое решение".
+  image: image108.png
+  paragraph:
+    text: По умолчанию в системе создано...ходящимися в любых состояниях.
+  paragraph:
+    text: Откроем эту карточку двойным к...со сложными правилами доступа.
+  image: image109.png
+  paragraph:
+    text: Наступил момент проверки наших...й. Создадим карточку документа
+    text: "Document" из группы "Ab" (пра...устите приложение TessaClient.
+  image: image110.png
+  paragraph:
+    text: Как видим, карточка автоматиче...расширениями типового решения.
+  image: image111.png
+  paragraph:
+    text: Заполним обязательные поля и с...у прикреплён наш тип карточки.
+  paragraph:
+    text: Откроем левую боковую панель. ...дачи. Зарегистрируем документ.
+  image: image112.png
+  paragraph:
+    text: Обратите внимание, что в поле ...р (как и в заголовке вкладки).
+  image: image113.png
+  paragraph:
+    text: Нажмём на левой боковой панели...ый номер в качестве основного.
+  paragraph:
+    text: Следует иметь в виду, что тепе... разрешено в правилах доступа.
+  header: 3, Последовательности
+  paragraph:
+    text: Рассмотрим карточки последоват...л "Прочее/Последовательности".
+  image: image114.png
+  paragraph:
+    text: Откроем карточку двойным кликом.
+  image: image115.png
+  paragraph:
+    text: Здесь можно увидеть "Интервалы...о это поведение настраивается.
+  paragraph:
+    text: В области "Зарезервированные н... не освободился автоматически.
+  paragraph:
+    text: Чтобы понять, каким образом ра...ельности `AbDocumentSequence`.
+  image: image116.png
+  paragraph:
+    text: Появилась строка с зарезервиро...выделен из последовательности.
+  paragraph:
+    text: Закроем вкладку с созданным до...умента его могли опять занять.
+  image: image117.png
+  paragraph:
+    text: Это завершает руководство. Мы ...олучить в других руководствах.

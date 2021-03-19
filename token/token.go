@@ -46,4 +46,6 @@ const (
 	LINK_NAME	= "LINK_NAME"
 	INT_LINK    = "INT_LINK" //internal link "<<link,name>>"
 	INCLUDE		= "INCLUDE" //include directive "include::RoutingGuide.adoc[leveloffset=+1]"
+	COMMENT		= "COMMENT"
+	SIDEBAR		= "SIDEBAR" //sidebar block delimiter "\n****"
 )

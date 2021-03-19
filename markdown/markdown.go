@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"asciidoc2md/ast"
+	"asciidoc2md/token"
 	"asciidoc2md/utils"
 	"cdr.dev/slog"
 	"context"
@@ -101,12 +102,17 @@ func (c *Converter)	ConvertComplexTable(t *ast.Table) *ast.List {
 			case col == 0 && isDefList:
 				//first column text becomes a header
 				//c.log.Info(context.Background(), "cell", slog.F("h", t.Cells[i].StringWithIndent("")))
-				h := strings.TrimSpace(c.ConvertParagraph(t.Cells[i].Blocks[0].(*ast.Paragraph), true))
-				//c.log.Info(context.Background(), "header", slog.F("h", h))
-				if h != "" && !utils.RuneIs(rune(h[0]), '`','*') {
-					h = "`" + h + "`"
+				firstPar := t.Cells[i].Blocks[0].(*ast.Paragraph)
+				if firstPar.IsSingleText() {
+					h := strings.TrimSpace(c.ConvertParagraph(firstPar, true))
+					//c.log.Info(context.Background(), "header", slog.F("h", h))
+					if h != "" && !utils.RuneIs(rune(h[0]), '`', '*') {
+						h = "`" + h + "`"
+					}
+					rowCont.Add(ast.NewParagraphFromStr(h))
+				} else {
+					rowCont.Add(firstPar)
 				}
-				rowCont.Add(ast.NewParagraphFromStr(h))
 			case col == 1 && t.Columns == 2:
 				//second column goes without a header (only for tables with 2 columns)
 				rowCont.Append(t.Cells[i].Blocks...)
@@ -178,6 +184,11 @@ func (c *Converter) WriteHeader(h *ast.Header, w io.Writer) {
 	if h.Id != "" {
 		w.Write([]byte(fmt.Sprintf(`<a id="%v"></a>` + "\n", h.Id)))
 	}
+	if h.Float {
+		//render float headers as italic text
+		w.Write([]byte("_" + h.Text + "_\n"))
+		return
+	}
 	w.Write([]byte(strings.Repeat("#", h.Level) + " " + h.Text + "\n"))
 }
 
@@ -219,10 +230,14 @@ func (c *Converter) WriteParagraph(p *ast.Paragraph, noFormatFix bool, w io.Writ
 			//no need to convert asciidoc italic "_" since it's still an italic in markdown
 			str := txt.Text
 			if !noFormatFix {
-				str = strings.ReplaceAll(str, "#", `\#`)
 				str = strings.ReplaceAll(str, "`*", "`")
 				str = strings.ReplaceAll(str, "*`", "`")
 				str = strings.ReplaceAll(str, "*", "**")
+				str = utils.ReplaceHtmlOutsideBackticks(str)
+				if strings.HasPrefix(str, "[**]") {
+					//checked list
+					str = strings.Replace(str, "[**]", "[x]", 1)
+				}
 			}
 			w.Write([]byte(str))
 			needSpace = false
@@ -239,7 +254,16 @@ func (c *Converter) WriteParagraph(p *ast.Paragraph, noFormatFix bool, w io.Writ
 func (c *Converter) WriteExampleBlock(ex *ast.ExampleBlock) {
 	ind := c.curIndent
 	c.curIndent += "    "
-	c.writer.Write([]byte("!!! example\n"))
+	if ex.Collapsible {
+		c.writer.Write([]byte("???"))
+	} else {
+		c.writer.Write([]byte("!!!"))
+	}
+	if ex.Delim.Type == token.EX_BLOCK {
+		c.writer.Write([]byte(" example\n"))
+	} else {
+		c.writer.Write([]byte(" info\n"))
+	}
 	c.WriteContainerBlock(&ex.ContainerBlock, true)
 	c.curIndent = ind
 }
@@ -343,6 +367,9 @@ func (c *Converter) WriteSyntaxBlock(sb *ast.SyntaxBlock) {
 	if sb.Literal[len(sb.Literal)-1:] == "\n" {
 		//trim last newline
 		str = sb.Literal[:len(sb.Literal)-1]
+	}
+	if len(str)==0 {
+		c.log.Error(context.Background(), "fuck!!", slog.F("sb", sb))
 	}
 	if str[0] == '\n' {
 		//trim first newline

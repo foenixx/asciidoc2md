@@ -176,6 +176,17 @@ document:
     header: 3, Header i1.2
   header: 2, Header 1.2`,
 	},
+	{
+		name: "paragraph",
+		input:	`В появившемся окне нажимаем кнопку *Открыть* image:image031.png[] и указываем окне импорта появятся карточки из выбранной библиотеки.`,
+		expected:
+		`
+document:
+  paragraph:
+    text: В появившемся окне нажимаем кнопку *Открыть* 
+    inline image: image031.png
+    text: и указываем окне импорта появя...точки из выбранной библиотеки.`,
+	},
 }
 
 func testACase(t *testing.T, tc *parserTestCase, log slog.Logger) {
@@ -185,7 +196,7 @@ func testACase(t *testing.T, tc *parserTestCase, log slog.Logger) {
 		}
 		return []byte(tc.incContent), nil
 	}, log)
-	doc, err := p.Parse()
+	doc, err := p.Parse("test.adoc")
 
 	if assert.NoError(t, err) {
 		t.Log(doc.StringWithIndent(""))
@@ -201,7 +212,7 @@ func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
 
 	p := New(string(input), nil, log)
 	log.Info(context.Background(), "test message")
-	doc, err := p.Parse()
+	doc, err := p.Parse("test.adoc")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -224,7 +235,7 @@ func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
 
 func Test1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	testAFile(t, "../data/test.adoc", "test.out", logger)
+	testAFile(t, "../docs/beginners/BeginnersGuide.adoc", "test.out", logger)
 }
 
 func TestParser(t *testing.T) {
@@ -240,8 +251,7 @@ var case1 = parserTestCase{
 name: "debug",
 input:
 `
-* #user_id - идентификатор текущего пользователя
-* #user_name - имя текущего пользователя
+В появившемся окне нажимаем кнопку *Открыть* image:image031.png[] и указываем путь к библиотеке карточек из сборки Configuration\Cards\Tessa.ms.cardlib (или Tessa.pg.cardlib, если установка выполняется для СУБД PostgreSQL). В окне импорта появятся карточки из выбранной библиотеки.
 `,
 expected:
 ``,

@@ -10,6 +10,7 @@ import (
 	"github.com/fatih/color"
 	"io/ioutil"
 	stdLog "log"
+	"os"
 	"path/filepath"
 )
 
@@ -31,6 +32,8 @@ var cli struct {
 	Debug bool `help:"Debug mode."`
 	Config     string `help:"Configuration file." short:"c" type:"existingfile"`
 	Slug string `optional help:"A template for split file name. Output files would have names like <slug>_[1...N].md." default:"part"`
+	SplitLevel int `optional help:"A level of the headers to split a file at." default:2`
+	Dump string `help:"Write parsed document to file."`
 	GenMap struct {
 		Input string `arg help:"*.adoc file to process." type:"existingfile" name:"file.adoc"`
 	} `cmd:"" help:"Generate <file.adoc.idmap> file."`
@@ -88,21 +91,28 @@ func loadConfig(configFile string) *settings.Config {
 
 func genIdMap() {
 	log.Debug(context.Background(), "genIdMap")
-	splitter := initSplitter(cli.GenMap.Input, cli.Config,"","", cli.Slug)
+	splitter := initSplitter(cli.GenMap.Input,
+		cli.Config,
+		"",
+		"",
+		cli.Slug,
+		cli.SplitLevel,
+		cli.Dump)
+
 	err := splitter.GenerateIdMap()
 	if err != nil {
 		panic(err)
 	}
 }
 
-func initSplitter(inputFile string, configFile string, imagePath string, outPath string, slug string) *FileSplitter {
+func initSplitter(inputFile string, configFile string, imagePath string, outPath string, slug string, splitLvl int, dumpFile string) *FileSplitter {
 	ctx := context.Background()
 	log.Debug(ctx, "convert")
 	log.Info(ctx, "input file", slog.F("name", inputFile))
 	log.Info(ctx, "image path", slog.F("path", imagePath))
 	log.Info(ctx, "settings", slog.F("settings", configFile))
 	conf := loadConfig(configFile)
-	log.Debug(ctx, "config file loaded", slog.F("config", conf))
+	log.Debug(ctx, "config file loaded")
 	input, err := ioutil.ReadFile(inputFile)
 	if err != nil {
 		panic(err)
@@ -116,11 +126,18 @@ func initSplitter(inputFile string, configFile string, imagePath string, outPath
 	if err != nil {
 		panic(err)
 	}
-	return NewFileSplitter(doc, slug, conf, outPath, log)
+	if dumpFile != "" {
+		err = ioutil.WriteFile(dumpFile, []byte(doc.String()), os.ModePerm)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return NewFileSplitter(doc, slug, conf, outPath, splitLvl, log)
 }
 
 func convert() {
-	splitter := initSplitter(cli.Convert.Input, cli.Config, cli.Convert.ImagePath, cli.Convert.Out, cli.Slug)
+	splitter := initSplitter(cli.Convert.Input, cli.Config, cli.Convert.ImagePath, cli.Convert.Out, cli.Slug, cli.SplitLevel, cli.Dump)
 	err := splitter.RenderMarkdown(cli.Convert.ImagePath)
 	if err != nil {
 		panic(err)

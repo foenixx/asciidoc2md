@@ -3,8 +3,35 @@ package utils
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"unicode/utf8"
 )
+
+func ReplaceHtmlOutsideBackticks(s string) string {
+	var inside = false
+	var prev int
+	b := strings.Builder{}
+	//loop over all runes in s
+	for pos, r := range s {
+		if r == '`' {
+			inside = !inside
+		}
+		if !inside && (r == '<' || r == '>' || r == '#') {
+			b.WriteString(s[prev:pos])
+			switch r {
+			case '<':
+				b.WriteString("&lt;")
+			case '>':
+				b.WriteString("&gt;")
+			case '#':
+				b.WriteString(`\#`)
+			}
+			prev = pos + 1
+		}
+	}
+	b.WriteString(s[prev:])
+	return b.String()
+}
 
 // https://stackoverflow.com/questions/41602230/return-first-n-chars-of-a-string
 func FirstN(s string, n int) string {
@@ -65,4 +92,15 @@ func IsNil(i interface{}) bool {
 		return reflect.ValueOf(i).IsNil()
 	}
 	return false
+}
+
+func CountDirs(path string) int {
+	parts := strings.Split(path, "/")
+	cnt := 0
+	for _, d := range parts {
+		if strings.TrimSpace(d) != "" {
+			cnt++
+		}
+	}
+	return cnt
 }

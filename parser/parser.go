@@ -137,8 +137,8 @@ forLoop:
 var ErrCannotAdvance = errors.New("cannot advance tokens")
 
 func (p *Parser) parseBlock() (ast.Block, error) {
-
 	var options string
+	ctx := context.Background()
 
 	if p.tok.Type == token.BLOCK_OPTS {
 		options = p.tok.Literal
@@ -151,6 +151,11 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 
 
 	switch {
+	case p.tok.Type == token.COMMENT:
+		//ignore comment
+		p.log.Warn(ctx, "ignore comment line", slog.F("token", p.tok))
+		if !p.advance() { return nil, ErrCannotAdvance }
+		return nil, nil
 	case p.isListMarker():
 		return p.parseList(nil)
 	case p.tok.Type == token.BLOCK_TITLE:
@@ -158,7 +163,7 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		if !p.advance() { return nil, ErrCannotAdvance }
 		return &t, nil
 	case p.tok.Type == token.HEADER:
-		return p.parseHeader("")
+		return p.parseHeader("", options)
 	case p.isParagraph(p.tok):
 		//paragraph
 		return p.parseParagraph()
@@ -173,9 +178,9 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		return &ast.HorLine{}, nil
 	case p.tok.Type == token.ADMONITION:
 		return p.parseAdmonition()
-	case p.tok.Type == token.EX_BLOCK:
-		//example block
-		return p.parseExampleBlock(options)
+	case p.tok.Type == token.EX_BLOCK || p.tok.Type == token.SIDEBAR:
+		//example block or sidebar block
+		return p.parseExampleBlock(options, p.tok)
 	case p.tok.Type == token.TABLE:
 		return p.parseTable(options)
 	case p.tok.Type == token.SYNTAX_BLOCK:
@@ -242,7 +247,7 @@ func (p *Parser) parseBookmark() (ast.Block, error) {
 		if !p.advance() {
 			return nil, ErrCannotAdvance
 		}
-		h, err := p.parseHeader(b.Literal)
+		h, err := p.parseHeader(b.Literal, "")
 		return h, err
 	}
 	return b, nil
@@ -259,6 +264,9 @@ func (p *Parser) parseInternalLink() (*ast.Link, error) {
 	link.Url = parts[0]
 	if len(parts) == 2 {
 		link.Text = parts[1]
+	}
+	if !p.advance() {
+		return nil, ErrCannotAdvance
 	}
 	return &link, nil
 }
@@ -278,17 +286,19 @@ func (p *Parser) parseLink() (*ast.Link, error) {
 	return &link, nil
 }
 
-func (p *Parser) parseExampleBlock(options string) (*ast.ExampleBlock, error) {
-	//skip delimiter + newline tokens
+func (p *Parser) parseExampleBlock(options string, delim *token.Token) (*ast.ExampleBlock, error) {
 	var ex ast.ExampleBlock
-	ex.Options = options
-	p.curBlock = &ex
+	ex.ParseOptions(options)
+	ex.Delim = delim
 	defer func(old ast.Block) { p.curBlock = old }(p.curBlock)
+	p.curBlock = &ex
 
+	//skip delimiter + newline tokens
 	if !p.advanceMany(2) {
 		return nil, fmt.Errorf("parse example block: cannot advance tokens")
 	}
-	for p.tok.Type != token.EX_BLOCK && p.tok.Type != token.EOF {
+
+	for p.tok.Type != delim.Type && p.tok.Type != token.EOF {
 
 		if p.tok.Type == token.NEWLINE {
 			if !p.advance() {
@@ -304,7 +314,7 @@ func (p *Parser) parseExampleBlock(options string) (*ast.ExampleBlock, error) {
 			}
 		}
 	}
-	if p.tok.Type == token.EX_BLOCK {
+	if p.tok.Type == delim.Type {
 		//skip closing token
 		if !p.advance() {
 			return nil, fmt.Errorf("parse example block: cannot advance tokens")
@@ -328,9 +338,13 @@ func (p *Parser) parseAdmonition() (*ast.Admonition, error) {
 	return &admonition, nil
 }
 
-func (p *Parser) parseHeader(id string) (*ast.Header, error) {
+func (p *Parser) parseHeader(id string, options string) (*ast.Header, error) {
 	var h ast.Header
 	h.Id = id
+	h.Options = options
+	if h.Options == "float" {
+		h.Float = true //not a header, just formatted like a header text
+	}
 	h.Level = len(p.tok.Literal)
 	if !p.advance() {
 		return nil, fmt.Errorf("parseHeader: cannot advance")
@@ -361,6 +375,10 @@ func (p *Parser) parseParagraph() (*ast.Paragraph, error) {
 			par.Add(link)
 		case token.STR:
 			par.Add(&ast.Text{Text: p.tok.Literal})
+			// EOF reached
+			if !p.advance() {
+				return nil, ErrCannotAdvance
+			}
 		case token.INLINE_IMAGE:
 			im, err := p.parseInlineImage()
 			if err != nil {
@@ -373,10 +391,6 @@ func (p *Parser) parseParagraph() (*ast.Paragraph, error) {
 				return nil, err
 			}
 			par.Add(link)
-		}
-		// EOF reached
-		if !p.advance() {
-			break
 		}
 		// read until double NEWLINE or list marker (which means we're inside the list) or "+" paragraph concatenation
 		if p.isParagraphEnd() {
@@ -500,9 +514,9 @@ l1:
 
 		default:
 			//are we inside example block?
-			if p.curBlock != nil && p.tok.Type == token.EX_BLOCK {
-				_, yes := p.curBlock.(*ast.ExampleBlock)
-				if yes {
+			if p.curBlock != nil && (p.tok.Type == token.EX_BLOCK || p.tok.Type == token.SIDEBAR) {
+				exb, yes := p.curBlock.(*ast.ExampleBlock)
+				if yes && exb.Delim.Type == p.tok.Type {
 					break l1
 				}
 			}
@@ -574,7 +588,7 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 	for {
 		switch {
 		case p.isDoubleNewline() || p.tok.Type == token.EOF ||
-				p.tok.Type == token.EX_BLOCK || p.isColumn() || p.tok.Type == token.TABLE:
+				p.tok.Type == token.EX_BLOCK || p.tok.Type == token.SIDEBAR || p.isColumn() || p.tok.Type == token.TABLE:
 			//end of the list
 			//p.nestedListLevel = 0
 			return &list, nil

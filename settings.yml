@@ -1,0 +1,52 @@
+crosslinks:
+  InstallationGuide.adoc: installation/
+  UserGuide.adoc: user/
+  AdministratorGuide.adoc: admin/
+  ProgrammersGuide.adoc: dev/
+  BestPractices.adoc: dev/ex/
+  BeginnersGuide.adoc: beginners/
+  LinuxInstallationGuide.adoc: linux_inst/
+  WebClientLimitations.adoc: web_limits/
+  WebProgrammersGuide.adoc: web_sdk/
+  WorkflowGuide.adoc: workflow/
+urlrewrites:
+  - WorkflowGuide: WorkflowGuide.adoc
+  - WebProgrammersGuide: WebProgrammersGuide.adoc
+  - WebClientLimitations: WebClientLimitations.adoc
+  - AdministratorGuide: AdministratorGuide.adoc
+  - ProgrammersGuide: ProgrammersGuide.adoc
+  - LinuxInstallationGuide: LinuxInstallationGuide.adoc
+  - InstallationGuide: InstallationGuide.adoc
+  - UserGuide: UserGuide.adoc
+  - Deployment.adoc: AdministratorGuide.adoc
+  - Extensions.adoc: ProgrammersGuide.adoc
+  - Cards.adoc: ProgrammersGuide.adoc
+  - Roles.adoc: ProgrammersGuide.adoc
+  - Views.adoc: ProgrammersGuide.adoc
+  - Localization.adoc: ProgrammersGuide.adoc
+  - Chronos.adoc: ProgrammersGuide.adoc
+  - Workflow.adoc: ProgrammersGuide.adoc
+  - Routes.adoc: ProgrammersGuide.adoc
+  - Tests.adoc: ProgrammersGuide.adoc
+  - SmartMergeAPI.adoc: ProgrammersGuide.adoc
+  - BestPractices.adoc: ProgrammersGuide.adoc
+headers:
+  InstallationGuide.adoc:
+    Состав поставки: description.md
+    Системные требования для серверов Windows и клиентских приложений: requirements.md
+    Установка TESSA для серверов Windows: windows.md
+    Настройка почтовых уведомлений и мобильного согласования: mail.md
+    Публикация приложений: publishing.md
+    Инсталлятор Tessa Applications: tessa_apps.md
+    Настройки сервера: settings.md
+    Проверка установки: validation.md
+    Расширенные настройки сервера: adv_settings.md
+    Поиск по сообщениям в Обсуждениях: conversations.md
+    Дополнительные настройки для web-клиента: web.md
+    Установка второго экземпляра Tessa на этом же сервере приложений: second_instance.md
+    Локальная установка без настройки IIS: no_iis.md
+    Установка платформы TESSA в среде управления контейнерами Docker: docker.md
+    Заключение: wrapping_up.md
+    Возможные проблемы: troubleshooting.md
+  UserGuide.adoc:
+  AdministratorGuide.adoc:

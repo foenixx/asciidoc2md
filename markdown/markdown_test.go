@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"asciidoc2md/parser"
+	"asciidoc2md/utils"
 	"bufio"
 	"cdr.dev/slog"
 	"cdr.dev/slog/sloggers/slogtest"
@@ -42,7 +43,7 @@ var input2 = `
 
 func testACase(t *testing.T, tc *convtc, log slog.Logger) {
 	p := parser.New(tc.input, nil, log)
-	doc, err := p.Parse()
+	doc, err := p.Parse("test.adoc")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -59,7 +60,7 @@ func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
 	}
 
 	p := parser.New(string(input), nil, log)
-	doc, err := p.Parse()
+	doc, err := p.Parse("test.adoc")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -88,30 +89,27 @@ func TestAll(t *testing.T) {
 	}
 }
 
+func TestEscapeHtml(t *testing.T) {
+	assert.Equal(t, "`это` ка&lt;кие&gt;-то `неправильные` пчелы `и они`&lt;&gt;", utils.ReplaceHtmlOutsideBackticks("`это` ка<кие>-то `неправильные` пчелы `и они`<>"))
+}
+
+
 func Test1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	testAFile(t, "../data/installation.adoc", "../test.md", logger)
+	testAFile(t, "../test.adoc", "../test.md", logger)
 }
 
 func TestConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 	input :=
 `
-* #user_id - идентификатор текущего пользователя
-* #user_name - имя текущего пользователя
+В появившемся окне нажимаем кнопку *Открыть* image:image031.png[] и указываем путь к библиотеке карточек из сборки Configuration\Cards\Tessa.ms.cardlib (или Tessa.pg.cardlib, если установка выполняется для СУБД PostgreSQL). В окне импорта появятся карточки из выбранной библиотеки.
 `
-	inc :=
-`
-= Header i1
-
-== Header i1.1
-
-== Header i1.2
-`
+	inc := ``
 	p := parser.New(input, func(name string) ([]byte, error) {
 		return []byte(inc), nil
 	}, logger)
-	doc, err := p.Parse()
+	doc, err := p.Parse("test.adoc")
 	assert.Nil(t, err)
 	logger.Info(context.Background(), doc.StringWithIndent(""))
 	var builder = strings.Builder{}

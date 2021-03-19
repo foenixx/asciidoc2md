@@ -41,7 +41,7 @@ func TestSplitter_FindFirstHeader(t *testing.T) {
 		return
 	}
 
-	splitter := NewFileSplitter(doc, "slug", nil, "", logger)
+	splitter := NewFileSplitter(doc, "slug", nil, "", 2, logger)
 	h := splitter.findFirstHeader()
 	if !assert.NotNil(t, h) {
 		return
@@ -60,7 +60,7 @@ func TestSplitter_NextFile(t *testing.T) {
 		return
 	}
 
-	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, "", logger)
+	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, "", 2, logger)
 	// init splitter
 	splitter.init(false)
 	for i := range []int{0,1} {
@@ -92,7 +92,7 @@ func TestSplitter_WriteMarkdown(t *testing.T) {
 		return
 	}
 
-	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, "", logger)
+	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, "", 2, logger)
 	// init splitter
 	err = splitter.RenderMarkdown("")
 	assert.NoError(t, err)
@@ -115,7 +115,7 @@ func TestSplitter(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, ".",logger)
+	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, ".",2, logger)
 	splitter.init(true)
 	assert.Equal(t, map[string]string{"id_header3": "part2.md","id_listitem2": "slug_2.md"}, splitter.idMaps)
 	assert.Equal(t, []string{"part2.md", "slug_2.md"}, splitter.fileNames)
@@ -124,19 +124,20 @@ func TestSplitter(t *testing.T) {
 
 func TestSplitter_Debug1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
-/*
-	inputFile := "docs/admin/AdministratorGuide.adoc"
+
+	inputFile := "docs/linux_inst/LinuxInstallationGuide.adoc"
 	includePath := filepath.Dir(inputFile)
-	outputSlug := "admin"
-	outputPath := "c:/personal/mkdocs/tessa_docs/docs/"
+	outputSlug := "linux_inst"
+	outputPath := "" //"c:/personal/mkdocs/tessa_docs/docs/dev"
 	imagePath := "/images"
-*/
-	inputFile := "docs/dev/ProgrammersGuide.adoc"
+
+/*	inputFile := "docs/beginners/BeginnersGuide.adoc"
+	//inputFile := "test.adoc"
 	includePath := filepath.Dir(inputFile)
-	outputSlug := "dev"
-	outputPath := "c:/personal/mkdocs/tessa_docs/docs/dev"
+	outputSlug := "tt"
+	outputPath := ""
 	//imagePath := "/images"
-	config := loadConfig("settings.yml")
+*/	config := loadConfig("settings.yml")
 
 	input, err := ioutil.ReadFile(inputFile)
 	if !assert.NoError(t, err) {
@@ -147,12 +148,14 @@ func TestSplitter_Debug1(t *testing.T) {
 		return ioutil.ReadFile(filepath.Join(includePath, name))
 	}, log)
 	doc, err := p.Parse(inputFile)
+	ioutil.WriteFile("test.out", []byte(doc.StringWithIndent("")), os.ModePerm)
 	if err != nil {
 		panic(err)
 	}
-	splitter := NewFileSplitter(doc, outputSlug, config, outputPath, logger)
+	splitter := NewFileSplitter(doc, outputSlug, config, outputPath, 2, logger)
 	//err = splitter.RenderMarkdown(imagePath)
-	err = splitter.GenerateIdMap()
+	//err = splitter.GenerateIdMap()
+	err = splitter.RenderMarkdown(imagePath)
 	assert.NoError(t, err)
 
 }
@@ -162,22 +165,10 @@ func TestSplitter_Debug2(t *testing.T) {
 	abs, _ := filepath.Abs(".")
 	logger.Info(context.Background(), abs)
 
-	input :=`= Header 1
-
-== Header 1.1
-
-[[outer_ref]]
-include::inc.adoc[leveloffset=+1]
-
-== Header 1.2
+	input :=`
+IMPORTANT: Не рекомендуется настраивать замещение непосредственно из карточки роли. В системе есть существенно более удобный механизм - карточка <<..\UserGuide\UserGuide.adoc#my-deputies,Мои замещения>>. Администраторы могут настраивать замещения пользователей непосредственно из карточки пользователя.
 `
-	inc :=`= Header i1
-
-[[inner_ref_i1.1]]
-== Header i1.1
-
-== Header i1.2
-`
+	inc :=``
 
 	p := parser.New(input, func(name string) ([]byte, error) {
 		return []byte(inc), nil
@@ -186,8 +177,8 @@ include::inc.adoc[leveloffset=+1]
 	if err != nil {
 		panic(err)
 	}
-
-	splitter := NewFileSplitter(doc, "outputSlug", nil, ".", logger)
+	conf := loadConfig("settings.yml")
+	splitter := NewFileSplitter(doc, "outputSlug", conf, ".", 2, logger)
 	//splitter.init()
 	err = splitter.RenderMarkdown("")
 	assert.NoError(t, err)
