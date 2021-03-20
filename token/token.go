@@ -2,7 +2,7 @@ package token
 
 import "fmt"
 
-type TokenType string
+type TokenType int
 
 type Token struct {
 	Type TokenType
@@ -16,6 +16,41 @@ func (t *Token) String() string {
 }
 
 const (
+	ILLEGAL = iota
+	EOF
+	// Delimiters
+	NEWLINE
+	// Values
+	STR
+	SYNTAX_BLOCK
+	// Keywords
+	BLOCK_DELIM // "----" block delimiter
+	BLOCK_OPTS // "[source,json]" code block options
+	INDENT
+	HEADER
+	HOR_LINE
+	L_MARK //not-numbered list marker
+	NL_MARK //numbered list  marker
+	BLOCK_IMAGE
+	INLINE_IMAGE
+	ADMONITION
+	CONCAT_PAR // "+" symbol between paragraphs
+	BOOKMARK // "[[bookmark_text]]"
+	BLOCK_TITLE
+	EX_BLOCK //open example block "===="
+	QUOTE_BLOCK //quotation block "____"
+	TABLE //table "|===...."
+	COLUMN //column separator "|"
+	A_COLUMN //column separator "a|"
+	URL
+	LINK_NAME
+	INT_LINK  //internal link "<<link,name>>"
+	INCLUDE  //include directive "include::RoutingGuide.adoc[leveloffset=+1]"
+	COMMENT
+	SIDEBAR //sidebar block delimiter "\n****"
+)
+
+/*const (
 	ILLEGAL = "ILLEGAL"
 	EOF = "EOF"
 	// Delimiters
@@ -48,4 +83,4 @@ const (
 	INCLUDE		= "INCLUDE" //include directive "include::RoutingGuide.adoc[leveloffset=+1]"
 	COMMENT		= "COMMENT"
 	SIDEBAR		= "SIDEBAR" //sidebar block delimiter "\n****"
-)
+)*/

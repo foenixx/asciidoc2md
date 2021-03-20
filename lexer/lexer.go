@@ -222,7 +222,7 @@ func (l *Lexer) next() *token.Token {
 		state := l.GetState()
 		m := l.readListMarker()
 		l.readWhitespace() //skip whitespace after
-		if isNewLine(l.ch) {
+		if isNewLine(l.ch) || isEOF(l.ch) {
 			//not a list marker
 			l.Rewind(state)
 			return l.tryString()
@@ -258,8 +258,7 @@ func (l *Lexer) next() *token.Token {
 		l.readRune()
 		return l.setNewToken(token.COLUMN, l.line, "|")
 	case isWhitespace(l.ch):
-		l.readWhitespace()
-		return nil
+		return l.setNewToken(token.STR, l.line, l.readWhitespace())
 	case l.ch == 0:
 		return l.setNewToken(token.EOF, l.line, "")
 	default:
@@ -559,7 +558,12 @@ func isWhitespace(ch rune) bool {
 }
 
 func isNewLine(ch rune) bool {
+
 	return ch == '\n' || ch == '\r'
+}
+
+func isEOF(ch rune) bool {
+	return ch == 0
 }
 
 

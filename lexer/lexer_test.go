@@ -170,7 +170,7 @@ image::image15_4.png[]`,
 			{token.NEWLINE, "\n"},
 			{token.STR, "После внесения изменений "},
 			{token.INLINE_IMAGE, "image:image15_3.png[]"},
-			{token.STR, "схему данных необходимо сохранить."},
+			{token.STR, " схему данных необходимо сохранить."},
 			{token.NEWLINE, "\n"},
 			{token.NEWLINE, "\n"},
 			{token.BLOCK_IMAGE, "image::image15_4.png[]"},
@@ -242,11 +242,11 @@ some text`,
 | text7 | text8|`,
 		tests: []lt{
 			{token.TABLE, `|===`},{token.NEWLINE, "\n"},
-			{token.COLUMN, `|`}, {token.STR, "text1 "},
-				{token.COLUMN, `|`}, {token.STR, "text2"},{token.COLUMN, `|`},
+			{token.COLUMN, `|`}, {token.STR, " text1 "},
+				{token.COLUMN, `|`}, {token.STR, " text2"},{token.COLUMN, `|`},
 					{token.NEWLINE, "\n"},
 			{token.INDENT, " "},{token.A_COLUMN, "a|"}, {token.STR, "text3 "},
-				{token.COLUMN, `|`}, {token.STR, "text4"},{token.COLUMN, `|`},
+				{token.COLUMN, `|`}, {token.STR, " text4"},{token.COLUMN, `|`},
 					{token.NEWLINE, "\n"},
 			{token.INDENT, "\t"},{token.COLUMN, `|`}, {token.STR, "text5"},
 				{token.COLUMN, `|`}, {token.STR, "text6"},{token.NEWLINE, "\n"},
@@ -276,7 +276,7 @@ some text`,
 		input: "text1 https://olle[text2] \ntext3",
 		tests: []lt{
 			{token.STR, "text1 "}, {token.URL, "https://olle"},
-				{token.LINK_NAME, "text2"}, {token.NEWLINE, "\n"},
+				{token.LINK_NAME, "text2"},{token.STR, " "}, {token.NEWLINE, "\n"},
 			{token.STR, "text3"}, {token.EOF, ""},
 		},
 	},
@@ -284,7 +284,8 @@ some text`,
 		name: "comments",
 		input: "text1\n// text2\ntext3",
 		tests: []lt{
-			{token.STR, "text1 "}, {token.NEWLINE, "\n"},
+			{token.STR, "text1"}, {token.NEWLINE, "\n"},
+			{token.COMMENT, "// text2"}, {token.NEWLINE, "\n"},
 			{token.STR, "text3"}, {token.EOF, ""},
 		},
 
@@ -354,8 +355,7 @@ var dcase = lexerTestCase {
 
 func TestDbg(t *testing.T) {
 	input :=
-`В появившемся окне нажимаем кнопку *Открыть* image:image031.png[] и указываем путь к библиотеке карточек из сборки Configuration\Cards\Tessa.ms.cardlib (или Tessa.pg.cardlib, если установка выполняется для СУБД PostgreSQL). В окне импорта появятся карточки из выбранной библиотеки.
-`
+`В появившемся image:image031.png[] и указываем`
 	//input := "NOTE: Admonition text"
 
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)

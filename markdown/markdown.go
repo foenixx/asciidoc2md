@@ -218,16 +218,16 @@ func isPunctuation(s string) bool {
 }
 
 func (c *Converter) WriteParagraph(p *ast.Paragraph, noFormatFix bool, w io.Writer) {
-	var needSpace bool
+	//var needSpace bool
 	for _, b := range p.Blocks {
 		switch b.(type) {
 		case *ast.Text:
 			txt := b.(*ast.Text)
-			if needSpace && !isPunctuation(txt.Text){
-				w.Write([]byte(" "))
-			}
+			//if needSpace && !isPunctuation(txt.Text){
+			//	w.Write([]byte(" "))
+			//}
 			//converting "*" (asciidoc bold) to "**" (markdown bold)
-			//no need to convert asciidoc italic "_" since it's still an italic in markdown
+   			//no need to convert asciidoc italic "_" since it's still an italic in markdown
 			str := txt.Text
 			if !noFormatFix {
 				str = strings.ReplaceAll(str, "`*", "`")
@@ -240,13 +240,13 @@ func (c *Converter) WriteParagraph(p *ast.Paragraph, noFormatFix bool, w io.Writ
 				}
 			}
 			w.Write([]byte(str))
-			needSpace = false
+			//needSpace = false
 		case *ast.InlineImage:
 			c.WriteInlineImage(b.(*ast.InlineImage), w)
-			needSpace = true
+			//needSpace = true
 		case *ast.Link:
 			c.WriteLink(b.(*ast.Link),w)
-			needSpace = true
+			//needSpace = true
 		}
 	}
 }
@@ -346,10 +346,10 @@ func (c *Converter) WriteInlineImage(p *ast.InlineImage, w io.Writer) {
 func (c *Converter) WriteHorLine(p *ast.HorLine, w io.Writer) {
 	w.Write([]byte("***\n"))
 }
-//TODO: ссылки на документацию на сайте надо конвертировать:
-// например https://mytessa.ru/docs/AdministratorGuide/AdministratorGuide.html#publishDeski[Руководстве администратора]
+
 // <<repair-hosting, Возможных проблем>>
 func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
+	/*
 	if l.Internal &&  c.idMap != nil {
 		file, ok := c.idMap[l.Url]
 		if !ok {
@@ -359,6 +359,12 @@ func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
 	} else {
 		w.Write([]byte(fmt.Sprintf("[%s](%s)", l.Text, l.Url)))
 	}
+	 */
+	caption := l.Text
+	//if caption == "" {
+	//	caption = "(ссылка)"
+	//}
+	w.Write([]byte(fmt.Sprintf("[%s](%s)", caption, l.Url)))
 
 }
 

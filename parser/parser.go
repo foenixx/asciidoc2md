@@ -221,20 +221,12 @@ func (p *Parser) isParagraph(tok *token.Token) bool {
 
 func (p *Parser) isParagraphEnd() bool {
 	if p.tok.Type == token.NEWLINE && p.isParagraph(p.peekToken(1)) {
-		//ignore single NEWLINE
+		//ignore and skip single NEWLINE
+		p.advance()
 		return false
 	}
 
 	return !p.isParagraph(p.tok)
-
-	//return (p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE) ||
-	//	p.tok.Type == token.EOF ||
-	//	p.isListMarker() ||
-	//	p.tok.Type == token.CONCAT_PAR ||
-	//	p.tok.Type == token.EX_BLOCK ||
-	//	p.tok.Type == token.QUOTE_BLOCK ||
-	//	//in table mode newline completes the paragraph (in simple mode)
-	//	((p.tok.Type == token.COLUMN || p.tok.Type == token.A_COLUMN || p.tok.Type == token.NEWLINE) && p.tableFlag)
 }
 
 func (p *Parser) parseBookmark() (ast.Block, error) {
@@ -263,7 +255,7 @@ func (p *Parser) parseInternalLink() (*ast.Link, error) {
 	}
 	link.Url = parts[0]
 	if len(parts) == 2 {
-		link.Text = parts[1]
+		link.Text = strings.TrimSpace(parts[1])
 	}
 	if !p.advance() {
 		return nil, ErrCannotAdvance
@@ -278,7 +270,7 @@ func (p *Parser) parseLink() (*ast.Link, error) {
 		return nil, ErrCannotAdvance
 	}
 	if p.tok.Type == token.LINK_NAME {
-		link.Text = p.tok.Literal
+		link.Text = strings.TrimSpace(p.tok.Literal)
 		if !p.advance() {
 			return nil, ErrCannotAdvance
 		}

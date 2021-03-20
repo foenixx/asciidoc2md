@@ -19,7 +19,11 @@ import (
 	"strings"
 )
 
-type IdMap map[string]string
+type IdMapEntry struct {
+	FileName string
+	Caption string
+}
+type IdMap map[string]*IdMapEntry
 
 type FileSplitter struct {
 	doc         *ast.Document
@@ -98,7 +102,7 @@ func (fs *FileSplitter) getNextFileName(h *ast.Header) string {
 	}
 	name, ok := fs.conf.Headers[fs.doc.Name][h.Text]
 	if !ok {
-		fs.log.Info(context.Background(), "no file name for h", slog.F("h", h.Text))
+		//fs.log.Info(context.Background(), "no file name for h", slog.F("h", h.Text))
 		return fmt.Sprintf("%s_%v.md", fs.slug, fs.fileIndex)
 	}
 	return name
@@ -161,7 +165,8 @@ func (fs *FileSplitter)	findRewriteRule(url string) string {
 
 func (fs *FileSplitter) urlRewrite(url *ast.Link, root *ast.Document) {
 	ctx := context.Background()
-	var ref, uri, file string
+	var ref, uri string
+	var entry *IdMapEntry
 
 	uri = url.Url
 	idx := strings.Index(url.Url, "#")
@@ -190,20 +195,23 @@ func (fs *FileSplitter) urlRewrite(url *ast.Link, root *ast.Document) {
 
 	rule := fs.findRewriteRule(uri)
 	if rule != "" {
-		fs.log.Debug(ctx, "found rewrite rule", slog.F(file, rule))
+		fs.log.Debug(ctx, "found rewrite rule", slog.F(uri, rule))
 		uri = rule
 	}
 
-	file = fs.findIdMap(uri, ref)
+	entry = fs.findIdMap(uri, ref)
 
-	if file == "" && rule == "" {
+	if entry == nil && rule == "" {
 		//no rewrite rule && no file mapping
 		fs.log.Error(ctx, "cannot rewrite url: idmap is not found", slog.F("url", url), slog.F("doc", root.Name))
 		return
 	}
 	old := url.Url
-	if file != "" {
-		url.Url = fmt.Sprintf("%v#%v", path.Join(fs.getDocPath(uri), file), ref)
+	if entry != nil {
+		url.Url = fmt.Sprintf("%v#%v", path.Join(fs.getDocPath(uri), entry.FileName), ref)
+		if url.Text == "" {
+			url.Text = entry.Caption
+		}
 	} else {
 		url.Url = fmt.Sprintf("%v#%v", uri, ref)
 	}
@@ -230,7 +238,7 @@ func (fs *FileSplitter) fixUrls() {
 
 }
 
-func (fs *FileSplitter) writeIdMap(name string, idMap map[string]string) error {
+func (fs *FileSplitter) writeIdMap(name string, idMap IdMap) error {
 	if name == "" {
 		return errors.New("writeIdMap: name is empty")
 	}
@@ -259,8 +267,8 @@ func (fs *FileSplitter) getDocPath(doc string) string {
 func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 	ctx := context.Background()
 	// link can refer to the document in whole, without any id after '#'
-	// by this time fs.fileName SHOULD contain the first part file name
-	fs.appendIdMap(fs.doc.Name, fs.doc.Name, fs.fileName)
+	// by this time fs.fileName SHOULD contain the first part's file name
+	fs.appendIdMap(fs.doc.Name, fs.doc.Name, fs.fileName, "")
 	if fs.firstHeader == nil {
 		//no headers in the document
 		fs.log.Warn(ctx, "no first header, skip filling idmap")
@@ -288,11 +296,11 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 				str += fmt.Sprintf("    - %s: %s\n", hd.Text, docPath)
 			}
 			if hd.Id != "" {
-				fs.appendIdMap(fs.doc.Name, hd.Id, fs.fileName)
+				fs.appendIdMap(fs.doc.Name, hd.Id, fs.fileName, hd.Text)
 			}
 		case *ast.Bookmark:
 			//fs.log.Debug(ctx, "walking by bookmark", slog.F("header", b.(*ast.Bookmark)))
-			fs.appendIdMap(fs.doc.Name, b.(*ast.Bookmark).Literal, fs.fileName)
+			fs.appendIdMap(fs.doc.Name, b.(*ast.Bookmark).Literal, fs.fileName, "")
 		}
 		return true
 	}, nil)
@@ -305,7 +313,7 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 
 }
 
-func (fs *FileSplitter) appendIdMap(doc string, id string, file string) {
+func (fs *FileSplitter) appendIdMap(doc string, id string, file string, caption string) {
 	if id == "" {
 		//ignore empty IDs
 		return
@@ -313,10 +321,10 @@ func (fs *FileSplitter) appendIdMap(doc string, id string, file string) {
 	if fs.idMaps[fs.doc.Name] == nil {
 		fs.idMaps[fs.doc.Name] = make(IdMap)
 	}
-	fs.idMaps[fs.doc.Name][id] = file
+	fs.idMaps[fs.doc.Name][id] = &IdMapEntry{file, caption}
 }
 
-func (fs *FileSplitter) findIdMap(doc string, id string) string {
+func (fs *FileSplitter) findIdMap(doc string, id string) *IdMapEntry {
 	ctx := context.Background()
 	if fs.idMaps[doc] == nil {
 		//try to read *.idmap file
@@ -325,7 +333,7 @@ func (fs *FileSplitter) findIdMap(doc string, id string) string {
 			fs.log.Error(ctx, "cannot load idmap file", slog.F("err", err))
 			//no file, create emtpy map
 			fs.idMaps[doc] = make(IdMap)
-			return ""
+			return nil
 		}
 		var idm IdMap
 		err = yaml.Unmarshal(data, &idm)
@@ -333,7 +341,7 @@ func (fs *FileSplitter) findIdMap(doc string, id string) string {
 			fs.log.Error(ctx, "cannot load idmap file", slog.F("err", err))
 			//no file, create emtpy map
 			fs.idMaps[doc] = make(IdMap)
-			return ""
+			return nil
 		}
 
 		fs.idMaps[doc] = idm
@@ -359,6 +367,8 @@ func (fs *FileSplitter) init(fillMapOnly bool) error {
 			}
 		}
 	}
-	fs.fixUrls()
+	if !fillMapOnly {
+		fs.fixUrls()
+	}
 	return nil
 }

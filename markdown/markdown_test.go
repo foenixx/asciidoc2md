@@ -103,7 +103,7 @@ func TestConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 	input :=
 `
-В появившемся окне нажимаем кнопку *Открыть* image:image031.png[] и указываем путь к библиотеке карточек из сборки Configuration\Cards\Tessa.ms.cardlib (или Tessa.pg.cardlib, если установка выполняется для СУБД PostgreSQL). В окне импорта появятся карточки из выбранной библиотеки.
+Вызвать поисковый запрос можно из окна управления запросами (см. <<querycontrol, Управление запросами>>) или вывести его в дереве папок (см. <<edittree, Редактирование дерева представлений>>).
 `
 	inc := ``
 	p := parser.New(input, func(name string) ([]byte, error) {
