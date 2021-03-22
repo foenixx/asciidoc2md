@@ -208,7 +208,7 @@ func (p *Parser) isDoubleNewline() bool {
 }
 
 func (p *Parser) isListMarker() bool {
-	return p.tok.Type == token.NL_MARK || p.tok.Type == token.L_MARK
+	return p.tok.Type == token.NL_MARK || p.tok.Type == token.L_MARK || p.tok.Type == token.DEFL_MARK
 }
 
 func (p *Parser) isColumn() bool {
@@ -318,6 +318,7 @@ func (p *Parser) parseExampleBlock(options string, delim *token.Token) (*ast.Exa
 func (p *Parser) parseAdmonition() (*ast.Admonition, error) {
 	var admonition ast.Admonition
 	admonition.Kind = p.tok.Literal
+	admonition.Content = &ast.ContainerBlock{}
 	if !p.advance() {
 		return nil, fmt.Errorf("parse admonition error: cannot advance tokens")
 	}
@@ -325,10 +326,12 @@ func (p *Parser) parseAdmonition() (*ast.Admonition, error) {
 	if err != nil {
 			return nil, err
 		}
-	admonition.Content = b
+	admonition.Content.Add(b)
 
 	return &admonition, nil
 }
+
+var headerRE = regexp.MustCompile(`\s*=+$`)
 
 func (p *Parser) parseHeader(id string, options string) (*ast.Header, error) {
 	var h ast.Header
@@ -342,7 +345,8 @@ func (p *Parser) parseHeader(id string, options string) (*ast.Header, error) {
 		return nil, fmt.Errorf("parseHeader: cannot advance")
 	}
 	if p.tok.Type == token.STR {
-		h.Text = p.tok.Literal
+		//remove trailing "...==="
+		h.Text = headerRE.ReplaceAllString(p.tok.Literal, "")
 		//p.log.Debug(context.Background(), "parseHeader", slog.F("token", p.tok))
 
 		if !p.advance() {
@@ -488,8 +492,12 @@ func (p *Parser) parseInlineImage() (*ast.InlineImage, error) {
 }
 
 //level is a nested list level
-func (p *Parser) parseListItem() (*ast.ContainerBlock, error) {
+func (p *Parser) parseListItem(def string) (*ast.ContainerBlock, error) {
 	var item ast.ContainerBlock
+	if def != "" {
+		//definition list, definition itself becomes the first paragraph of the non-numbered list
+		item.Add(ast.NewParagraphFromStr(def))
+	}
 
 l1:
 	for {
@@ -566,8 +574,13 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 	var blok ast.Block
 	var item *ast.ContainerBlock
 	var list ast.List
-	//store list marker
-	list.Marker = p.tok.Literal
+	if p.tok.Type == token.DEFL_MARK {
+		list.Definition = true
+		list.Marker = "::"
+	} else {
+		//store list marker
+		list.Marker = p.tok.Literal
+	}
 	if strings.HasPrefix(list.Marker, ".") {
 		//numbered list
 		list.Numbered = true
@@ -584,16 +597,20 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 			//end of the list
 			//p.nestedListLevel = 0
 			return &list, nil
-		case p.isListMarker() && p.tok.Literal == list.Marker:
+		case p.isListMarker() && (p.tok.Literal == list.Marker || (p.tok.Type == token.DEFL_MARK && list.Definition)):
 			//current list item
+			var def string
+			if list.Definition {
+				def = p.tok.Literal
+			}
 			if !p.advance() {return nil, fmt.Errorf("parseList: cannot advance")}
-			item, err = p.parseListItem()
+			item, err = p.parseListItem(def)
 			if err != nil {
 				return nil, err
 			}
 			list.AddItem(item)
-		case p.isListMarker() && list.CheckMarker(p.tok.Literal):
-			//parent list item
+		case p.isListMarker() && (list.CheckMarker(p.tok.Literal) || (p.tok.Type == token.DEFL_MARK && !list.Definition)):
+			//parent list item OR parent definition list item
 			return &list, nil
 		case p.isListMarker():
 			//nested list

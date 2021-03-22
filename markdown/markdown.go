@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 )
 
@@ -138,6 +139,15 @@ func (c *Converter) WriteTable(t *ast.Table) {
 		c.WriteList(c.ConvertComplexTable(t))
 		return
 	}
+	if t.Columns == 1 && len(t.Cells) == 1 {
+		//single cell table without header -> convert to admonition
+		adm := ast.Admonition{}
+		adm.Content = t.Cells[0]
+		adm.Kind = "info"
+		c.WriteAdmonition(&adm)
+		return
+	}
+
 	if t.Columns == 0 {
 		//return "ZERO COLUMNS"
 	}
@@ -161,7 +171,8 @@ func (c *Converter) WriteTable(t *ast.Table) {
 		 //cell can be empty
 		 if len(cell.Blocks) > 0 {
 			 val := c.ConvertParagraph(cell.Blocks[0].(*ast.Paragraph), false)
-			 if t.Header && row == 1 && col == 1 {
+			 //expand first column
+			 if t.Header && row == 1 && col == 1 && t.Columns < 5 {
 				 //https://stackoverflow.com/a/57420043
 				 val = fmt.Sprintf(`<div style="width:13em">%s</div>`, val)
 			 }
@@ -177,7 +188,7 @@ func (c *Converter) WriteTable(t *ast.Table) {
 }
 
 func (c *Converter) WriteBlockTitle(h *ast.BlockTitle, w io.Writer) {
-	w.Write([]byte(fmt.Sprintf("_%v_\n", h.Title)))
+	w.Write([]byte(fmt.Sprintf("_%v_\n", fixText(h.Title))))
 }
 
 func (c *Converter) WriteHeader(h *ast.Header, w io.Writer) {
@@ -194,7 +205,7 @@ func (c *Converter) WriteHeader(h *ast.Header, w io.Writer) {
 
 //WriteAdmonition will work only if "Admonition" markdown extension is enabled.
 //For details see https://squidfunk.github.io/mkdocs-material/reference/admonitions/.
-func (c *Converter) WriteAdmonition(a *ast.Admonition, w io.Writer) {
+func (c *Converter) WriteAdmonition(a *ast.Admonition) {
 	//writer == "NOTE:" || writer == "TIP:" || writer == "IMPORTANT:" || writer == "WARNING:" || writer == "CAUTION:":
 	var kind string
 	if a.Kind == "CAUTION" {
@@ -202,9 +213,10 @@ func (c *Converter) WriteAdmonition(a *ast.Admonition, w io.Writer) {
 	} else {
 		kind = strings.ToLower(a.Kind)
 	}
-	w.Write([]byte(fmt.Sprintf("!!! %s\n%v    ", kind, c.curIndent)))
-	c.WriteParagraph(a.Content, false, w)
-	w.Write([]byte("\n"))
+	c.WriteString(fmt.Sprintf("!!! %s\n%v    ", kind, c.curIndent))
+	c.WriteContainerBlock(a.Content, false)
+	//c.WriteParagraph(a.Content, false, w)
+	c.WriteString("\n")
 }
 
 func (c *Converter) ConvertParagraph(p *ast.Paragraph, noFormatFix bool) string {
@@ -213,40 +225,79 @@ func (c *Converter) ConvertParagraph(p *ast.Paragraph, noFormatFix bool) string 
 	return res.String()
 }
 
-func isPunctuation(s string) bool {
-	return utils.RuneIs(rune(s[0]), ',','.',':',';')
+// This regexp is only taking into account backticks at the word boundary,
+// that is "ab`cd" is ignored while "ab `cd` ef" is not.
+var backticksRE = regexp.MustCompile(`\B(\x60)[^\x60]*(\x60)\B`)
+// "`*mono and bold text*`"
+var monoboldRE = regexp.MustCompile(`^\x60\*|\*\x60$`)
+// "`+++strange formatting+++`"
+var strangeFormatRE = regexp.MustCompile(`^\x60\+{3}|\+{3}\x60$`)
+var checkedRE = regexp.MustCompile(`^\[\*\]`)
+// match only single stars "*" at word boundary and ignore double stars "**"
+var boldRE = regexp.MustCompile(`([^\*]|^)\B\*\b|\b\*\B([^\*]|$)`)
+var sharpRE = regexp.MustCompile(`#(\s)`) //leave double stars "**" as-is
+var hardBreakRE = regexp.MustCompile(`\s\+$`)
+var smallTextRE = regexp.MustCompile(`\[small]#(.*?)#`)
+
+func fixString(s string, backticked bool) string {
+	// fix "`*monospace and bold*`" since it isn't allowed in markdown
+	// if strings.HasPrefix(s, "`*") && strings.HasSuffix(s, "")
+	s = monoboldRE.ReplaceAllLiteralString(s, "`")
+	s = strangeFormatRE.ReplaceAllLiteralString(s, "`")
+	if !backticked {
+		// fix checked lists "[*]" -> "[x]"
+		s = checkedRE.ReplaceAllLiteralString(s, "[x]")
+		// converting "*" (asciidoc bold) to "**" (markdown bold)
+		// no need to convert asciidoc italic "_" since it's still an italic in markdown
+		//s = boldRE.ReplaceAllLiteralString(s, "**")
+		s = boldRE.ReplaceAllString(s, "$1**$2")
+		s = sharpRE.ReplaceAllString(s, `\#$1`)
+		s = strings.ReplaceAll(s, "<", "&lt;")
+		s = strings.ReplaceAll(s, ">", "&gt;")
+	}
+	return s
+}
+
+func fixText(s string) string {
+	// asciidoc magic "Section1.Field1\=>Section2.Field2"
+	s = strings.ReplaceAll(s, `\->`, `->`)
+	s = strings.ReplaceAll(s, `\=>`, `=>`)
+	// removing "[small]#small text# magic"
+	s = smallTextRE.ReplaceAllString(s, "$1")
+	var fixed = strings.Builder{}
+	indices := append(append([][]int{}, backticksRE.FindAllStringIndex(s, -1)...), []int{len(s),-1})
+	beg := 0
+	var s1, s2 string
+	for _, ind := range indices {
+		s1 = s[beg:ind[0]]
+		if len(s1) > 0 {
+			//fmt.Printf("'%s'\n", s1)
+			fixed.WriteString(fixString(s1, false))
+		}
+		if ind[1] != -1 {
+			s2 = s[ind[0]:ind[1]]
+			fixed.WriteString(fixString(s2, true))
+			//fmt.Printf("'%s'\n", s2)
+		}
+		beg = ind[1]
+	}
+	return hardBreakRE.ReplaceAllString(fixed.String(), `</br>`)
 }
 
 func (c *Converter) WriteParagraph(p *ast.Paragraph, noFormatFix bool, w io.Writer) {
-	//var needSpace bool
 	for _, b := range p.Blocks {
 		switch b.(type) {
 		case *ast.Text:
 			txt := b.(*ast.Text)
-			//if needSpace && !isPunctuation(txt.Text){
-			//	w.Write([]byte(" "))
-			//}
-			//converting "*" (asciidoc bold) to "**" (markdown bold)
-   			//no need to convert asciidoc italic "_" since it's still an italic in markdown
 			str := txt.Text
 			if !noFormatFix {
-				str = strings.ReplaceAll(str, "`*", "`")
-				str = strings.ReplaceAll(str, "*`", "`")
-				str = strings.ReplaceAll(str, "*", "**")
-				str = utils.ReplaceHtmlOutsideBackticks(str)
-				if strings.HasPrefix(str, "[**]") {
-					//checked list
-					str = strings.Replace(str, "[**]", "[x]", 1)
-				}
+				str = fixText(str)
 			}
 			w.Write([]byte(str))
-			//needSpace = false
 		case *ast.InlineImage:
 			c.WriteInlineImage(b.(*ast.InlineImage), w)
-			//needSpace = true
 		case *ast.Link:
 			c.WriteLink(b.(*ast.Link),w)
-			//needSpace = true
 		}
 	}
 }
@@ -280,11 +331,12 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 	for i, b := range p.Blocks {
 
 		_, isList := b.(*ast.List)
+		_, isTable := b.(*ast.Table)
 		if i > 0 {
 			//write extra newline before every paragraph, except the first one
 			c.WriteString("\n")
 		}
-		if !isList && ((i == 0 && firstLineIndent) || i > 0) {
+		if !isList && !isTable && ((i == 0 && firstLineIndent) || i > 0) {
 			c.WriteString(c.curIndent)
 		}
 
@@ -319,7 +371,7 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 		case *ast.List:
 			c.WriteList(b.(*ast.List))
 		case *ast.Admonition:
-			c.WriteAdmonition(b.(*ast.Admonition), c.writer)
+			c.WriteAdmonition(b.(*ast.Admonition))
 		case *ast.BlockTitle:
 			c.WriteBlockTitle(b.(*ast.BlockTitle), c.writer)
 		case *ast.ExampleBlock:
@@ -349,23 +401,13 @@ func (c *Converter) WriteHorLine(p *ast.HorLine, w io.Writer) {
 
 // <<repair-hosting, Возможных проблем>>
 func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
-	/*
-	if l.Internal &&  c.idMap != nil {
-		file, ok := c.idMap[l.Url]
-		if !ok {
-			c.log.Error(context.Background(), "cannot find file map for link", slog.F("link", l))
-		}
-		w.Write([]byte(fmt.Sprintf("[%s](%s#%s)", l.Text, file, l.Url)))
-	} else {
-		w.Write([]byte(fmt.Sprintf("[%s](%s)", l.Text, l.Url)))
-	}
-	 */
 	caption := l.Text
-	//if caption == "" {
-	//	caption = "(ссылка)"
-	//}
-	w.Write([]byte(fmt.Sprintf("[%s](%s)", caption, l.Url)))
-
+	if caption == "" {
+		//shouldn't happen
+		c.log.Error(context.Background(), "empty link caption", slog.F("link", l))
+		caption = "(ссылка)"
+	}
+	w.Write([]byte(fmt.Sprintf("[%s](%s)", fixText(caption), l.Url)))
 }
 
 func (c *Converter) WriteSyntaxBlock(sb *ast.SyntaxBlock) {

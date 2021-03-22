@@ -8,6 +8,7 @@ type Config struct {
 	Headers map[string]IdMap//file.adoc -> id -> file.md
 	CrossLinks map[string]string // maps adoc file name to its relative location: UserGuide.adoc -> ../user/
 	UrlRewrites []IdMap // if link contains a specified key, then it's replaced with the provided value
+	NavFile string
 }
 
 func Parse(data []byte) (*Config, error) {

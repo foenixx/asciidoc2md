@@ -290,6 +290,27 @@ some text`,
 		},
 
 	},
+	{
+		name: "definition list",
+		input:
+`def list 1::
++
+text 1
++
+def list 2::
++
+text 2
++
+def list 3::
++
+text 3`,
+		tests: []lt{
+			{token.STR, "text1"}, {token.NEWLINE, "\n"},
+			{token.COMMENT, "// text2"}, {token.NEWLINE, "\n"},
+			{token.STR, "text3"}, {token.EOF, ""},
+		},
+
+	},
 
 }
 
@@ -355,7 +376,19 @@ var dcase = lexerTestCase {
 
 func TestDbg(t *testing.T) {
 	input :=
-`В появившемся image:image031.png[] и указываем`
+`
+def list 1::
++
+text 1
++
+def list 2::
++
+text 2
++
+def list 3::
++
+text 3
+`
 	//input := "NOTE: Admonition text"
 
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)

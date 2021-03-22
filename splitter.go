@@ -277,7 +277,7 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 		return
 	}
 	docPath := path.Join(fs.conf.CrossLinks[fs.doc.Name], fs.fileName)
-	str := fmt.Sprintf("    - %s: %s\n", fs.firstHeader.Text, docPath)
+	nav := []string{fmt.Sprintf("- %s: %s", fs.firstHeader.Text, docPath)}
 
 	fs.doc.Walk(func(b ast.Block, root *ast.Document) bool {
 
@@ -293,7 +293,7 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 				fs.fileName = fs.getNextFileName(hd)
 				fs.fileNames = append(fs.fileNames, fs.fileName)
 				docPath = path.Join(fs.conf.CrossLinks[fs.doc.Name], fs.fileName)
-				str += fmt.Sprintf("    - %s: %s\n", hd.Text, docPath)
+				nav = append(nav, fmt.Sprintf("- %s: %s", hd.Text, docPath))
 			}
 			if hd.Id != "" {
 				fs.appendIdMap(fs.doc.Name, hd.Id, fs.fileName, hd.Text)
@@ -308,9 +308,27 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 	fs.fileIndex = 0
 	fs.fileName = ""
 	if printYaml {
-		fmt.Print(str)
+		fmt.Print(strings.Join(nav, "\n") + "\n")
 	}
+	if fs.conf.NavFile != "" {
+		err := fs.writeNavToFile(fs.conf.NavFile, fs.doc.Name, nav)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
 
+func (fs *FileSplitter) writeNavToFile(navFile string, docFile string, nav []string) error {
+	data, err := ioutil.ReadFile(navFile)
+	if err != nil {
+		return err
+	}
+	out, err := writeNav(string(data), docFile, nav)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(navFile, []byte(out), 666)
+	return err
 }
 
 func (fs *FileSplitter) appendIdMap(doc string, id string, file string, caption string) {

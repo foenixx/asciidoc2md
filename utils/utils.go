@@ -7,7 +7,9 @@ import (
 	"unicode/utf8"
 )
 
-func ReplaceHtmlOutsideBackticks(s string) string {
+
+
+func FixFormatting(s string) string {
 	var inside = false
 	var prev int
 	b := strings.Builder{}

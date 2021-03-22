@@ -221,8 +221,9 @@ func (l *Lexer) next() *token.Token {
 		ch := l.ch
 		state := l.GetState()
 		m := l.readListMarker()
-		l.readWhitespace() //skip whitespace after
-		if isNewLine(l.ch) || isEOF(l.ch) {
+		ws := l.readWhitespace() //skip whitespace after
+		if isNewLine(l.ch) || isEOF(l.ch) || len(ws) == 0 {
+			// "***\n" or "**text" situation
 			//not a list marker
 			l.Rewind(state)
 			return l.tryString()
@@ -355,6 +356,8 @@ func (l *Lexer) lookupInlineKeyword(w string) (*token.Token, int) {
 
 
 var admonitionRE = regexp.MustCompile(`^\s*((?:NOTE)|(?:TIP)|(?:IMPORTANT)|(?:WARNING)|(?:CAUTION)):\s(.*)$`)
+var defListRE = regexp.MustCompile(`^(.*)::\s*$`)
+var parConcatRE = regexp.MustCompile(`^\+\s*$`)
 /*
 lookupLineKeyword is used only for starting from newline keywords.
 Returns found token and count of consumed bytes.
@@ -389,6 +392,16 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 		// full string match + 2 capturing groups
 		if len(matches) == 3 {
 			return &token.Token{Type: token.ADMONITION, Line: l.line, Literal: matches[1]}, len(matches[1]) + 2 /* name and ": " */
+		}
+		//def list
+		matches = defListRE.FindStringSubmatch(w)
+		//full string match + 1 capturing group
+		if len(matches) == 2 {
+			return &token.Token{Type: token.DEFL_MARK, Line: l.line, Literal: matches[1]}, len(w)
+		}
+		if parConcatRE.MatchString(w) {
+			// paragraph concatenation with trailing spaces
+			return &token.Token{Type: token.CONCAT_PAR, Line: l.line, Literal: w}, len(w)
 		}
 
 	}

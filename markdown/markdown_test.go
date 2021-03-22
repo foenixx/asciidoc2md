@@ -90,20 +90,23 @@ func TestAll(t *testing.T) {
 }
 
 func TestEscapeHtml(t *testing.T) {
-	assert.Equal(t, "`это` ка&lt;кие&gt;-то `неправильные` пчелы `и они`&lt;&gt;", utils.ReplaceHtmlOutsideBackticks("`это` ка<кие>-то `неправильные` пчелы `и они`<>"))
+	assert.Equal(t, "`это` ка&lt;кие&gt;-то `неправильные` пчелы `и они`&lt;&gt;", utils.FixFormatting("`это` ка<кие>-то `неправильные` пчелы `и они`<>"))
 }
 
 
 func Test1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	testAFile(t, "../test.adoc", "../test.md", logger)
+	testAFile(t, "../test.adoc", "../docs/test.md", logger)
 }
 
 func TestConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 	input :=
 `
-Вызвать поисковый запрос можно из окна управления запросами (см. <<querycontrol, Управление запросами>>) или вывести его в дереве папок (см. <<edittree, Редактирование дерева представлений>>).
+[cols="",]
+|=======================================================================
+|Вызвать левую панель меню можно, нажав сочетание клавиш [Shift+Win], а правую – [Ctrl+Win].
+|=======================================================================
 `
 	inc := ``
 	p := parser.New(input, func(name string) ([]byte, error) {
@@ -118,5 +121,13 @@ func TestConverter(t *testing.T) {
 	conv.RenderMarkdown(doc, &builder)
 	res := builder.String()
 	logger.Info(context.Background(), res)
-	assert.Equal(t, "text", res)
+	assert.Equal(t, "", res)
+}
+
+func TestFixString(t *testing.T) {
+	assert.Equal(t, "`bc de`", fixString("`*bc de*`", true))
+	assert.Equal(t, "[x] abcd", fixString("[*] abcd", false))
+	assert.Equal(t, "some **bold** text and mi**dd**le and *)", fixString("some *bold* text and mi**dd**le and *)", false))
+	assert.Equal(t, `#abc \# de`, fixString("#abc # de", false))
+	assert.Equal(t, `&lt;&gt;`, fixString("<>", false))
 }

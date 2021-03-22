@@ -187,6 +187,43 @@ document:
     inline image: image031.png
     text:  и указываем окне импорта появ...точки из выбранной библиотеки.`,
 	},
+	{
+		name: "definition list",
+		input:	`def list 1::
++
+text 1
++
+def list 2::
++
+text 2
++
+def list 3::
++
+text 3`,
+		expected:
+		`
+document:
+  list begin: (0/false/::)
+  item:
+    container block:
+      paragraph:
+        text: def list 1
+      paragraph:
+        text: text 1
+  item:
+    container block:
+      paragraph:
+        text: def list 2
+      paragraph:
+        text: text 2
+  item:
+    container block:
+      paragraph:
+        text: def list 3
+      paragraph:
+        text: text 3
+  list end`,
+	},
 }
 
 func testACase(t *testing.T, tc *parserTestCase, log slog.Logger) {
@@ -250,9 +287,17 @@ func TestParser(t *testing.T) {
 var case1 = parserTestCase{
 name: "debug",
 input:
-`
-В появившемся окне нажимаем кнопку *Открыть* image:image031.png[] и указываем путь к библиотеке карточек из сборки Configuration\Cards\Tessa.ms.cardlib (или Tessa.pg.cardlib, если установка выполняется для СУБД PostgreSQL). В окне импорта появятся карточки из выбранной библиотеки.
-`,
+`def list 1::
++
+text 1
++
+def list 2::
++
+text 2
++
+def list 3::
++
+text 3`,
 expected:
 ``,
 }

@@ -36,6 +36,7 @@ var cli struct {
 	Dump string `help:"Write parsed document to file."`
 	GenMap struct {
 		Input string `arg help:"*.adoc file to process." type:"existingfile" name:"file.adoc"`
+		WriteNav string `optional help:"Path to mkdocs.yml file to write navigation index." type:"existingfile"`
 	} `cmd:"" help:"Generate <file.adoc.idmap> file."`
 	Convert struct {
 		Input string `arg help:"*.adoc file to process." type:"existingfile" name:"file.adoc"`
@@ -97,7 +98,8 @@ func genIdMap() {
 		"",
 		cli.Slug,
 		cli.SplitLevel,
-		cli.Dump)
+		cli.Dump,
+		cli.GenMap.WriteNav)
 
 	err := splitter.GenerateIdMap()
 	if err != nil {
@@ -105,13 +107,14 @@ func genIdMap() {
 	}
 }
 
-func initSplitter(inputFile string, configFile string, imagePath string, outPath string, slug string, splitLvl int, dumpFile string) *FileSplitter {
+func initSplitter(inputFile string, configFile string, imagePath string, outPath string, slug string, splitLvl int, dumpFile string, navFile string) *FileSplitter {
 	ctx := context.Background()
 	log.Debug(ctx, "convert")
 	log.Info(ctx, "input file", slog.F("name", inputFile))
 	log.Info(ctx, "image path", slog.F("path", imagePath))
 	log.Info(ctx, "settings", slog.F("settings", configFile))
 	conf := loadConfig(configFile)
+	conf.NavFile = navFile
 	log.Debug(ctx, "config file loaded")
 	input, err := ioutil.ReadFile(inputFile)
 	if err != nil {
@@ -137,7 +140,7 @@ func initSplitter(inputFile string, configFile string, imagePath string, outPath
 }
 
 func convert() {
-	splitter := initSplitter(cli.Convert.Input, cli.Config, cli.Convert.ImagePath, cli.Convert.Out, cli.Slug, cli.SplitLevel, cli.Dump)
+	splitter := initSplitter(cli.Convert.Input, cli.Config, cli.Convert.ImagePath, cli.Convert.Out, cli.Slug, cli.SplitLevel, cli.Dump, "")
 	err := splitter.RenderMarkdown(cli.Convert.ImagePath)
 	if err != nil {
 		panic(err)

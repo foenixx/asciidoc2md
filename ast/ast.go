@@ -183,6 +183,7 @@ type List struct {
 	Marker string
 	Level int
 	Numbered bool
+	Definition bool
 }
 
 func (l *List) Walk(f WalkerFunc, root *Document) bool {
@@ -337,7 +338,7 @@ func (i *HorLine) String() string {
 
 type Admonition struct {
 	Kind string
-	Content *Paragraph
+	Content *ContainerBlock
 }
 
 func (l *Admonition) Walk(f WalkerFunc, root *Document) bool {
