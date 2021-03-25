@@ -1,6 +1,7 @@
 SHELL := /bin/zsh
 cur_dir := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
+.DEFAULT_GOAL := all
 # If "all" goal or no goal at all is specified when running make: "make all".
 ifeq (,$(MAKECMDGOALS))
 target_all=all
@@ -95,9 +96,6 @@ ifdef $(1).images_dir
 endif
  $(artifacts_dir)/$(target_idmap_file): $(target_src) asciidoc2md
  $(artifacts_dir)/$(target_idmap_file): slug=$(1)
-ifdef target_all
- $(artifacts_dir)/$(target_idmap_file): all_idmaps_proxy
-endif
 ifdef $(1).no_nav
  $(artifacts_dir)/$(target_idmap_file): write_nav_flag=
 endif
@@ -127,16 +125,19 @@ endif
 
 endef
 
-# This target makes sure that building all idmaps is done before building
-#  any .md files.
-all: $(target_names)
-all_idmaps_proxy: $(idmap_files_all)
-
-
 #$(info $(call adoc_rule,user))
 #$(foreach item,$(target_names),$(info $(call adoc_rule,$(item))))
 $(foreach item,$(target_names),$(eval $(call adoc_rule,$(item))))
 #$(info $(dest_files_all))
+
+# This target makes sure that building all idmaps is done before building
+#  any .md files.
+all: $(target_names)
+ifdef target_all
+ $(dest_files_all): all_idmaps_proxy
+endif
+all_idmaps_proxy: $(idmap_files_all)
+#$(info $(idmap_files_all))
 
 dest_reinit: $(folder_init_all_targets)
 
