@@ -7,7 +7,6 @@ import (
 	"cdr.dev/slog/sloggers/slogtest"
 	"context"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -125,39 +124,17 @@ func TestSplitter(t *testing.T) {
 func TestSplitter_Debug1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 
-	inputFile := "docs/linux_inst/LinuxInstallationGuide.adoc"
-	includePath := filepath.Dir(inputFile)
-	outputSlug := "linux_inst"
-	outputPath := "" //"c:/personal/mkdocs/tessa_docs/docs/dev"
+	//inputFile := "docs/user/UserGuide.adoc"
+	inputFile := "C:\\SynProjects\\Syntellect\\Tessa\\Docs\\UserGuide\\UserGuide.adoc"
+	//includePath := filepath.Dir(inputFile)
+	outputSlug := "user"
+	outputPath := "C:\\SynProjects\\Syntellect\\tessa_docs\\docs\\user"
 	imagePath := "/images"
 
-/*	inputFile := "docs/beginners/BeginnersGuide.adoc"
-	//inputFile := "test.adoc"
-	includePath := filepath.Dir(inputFile)
-	outputSlug := "tt"
-	outputPath := ""
-	//imagePath := "/images"
-*/	config := loadConfig("settings.yml")
-
-	input, err := ioutil.ReadFile(inputFile)
-	if !assert.NoError(t, err) {
-		return
-	}
-
-	p := parser.New(string(input), func(name string) ([]byte, error) {
-		return ioutil.ReadFile(filepath.Join(includePath, name))
-	}, log)
-	doc, err := p.Parse(inputFile)
-	ioutil.WriteFile("test.out", []byte(doc.StringWithIndent("")), os.ModePerm)
-	if err != nil {
-		panic(err)
-	}
-	splitter := NewFileSplitter(doc, outputSlug, config, outputPath, 2, logger)
-	//err = splitter.RenderMarkdown(imagePath)
-	//err = splitter.GenerateIdMap()
-	err = splitter.RenderMarkdown(imagePath)
+	config := initConfigCLI("settings.yml", nil)
+	splitter := initSplitter(inputFile, "", outputPath, outputSlug, 2, "", config, logger)
+	err := splitter.RenderMarkdown(imagePath)
 	assert.NoError(t, err)
-
 }
 
 func TestSplitter_Debug2(t *testing.T) {
@@ -177,7 +154,7 @@ IMPORTANT: Не рекомендуется настраивать замещен
 	if err != nil {
 		panic(err)
 	}
-	conf := loadConfig("settings.yml")
+	conf := initConfigCLI("settings.yml", nil)
 	splitter := NewFileSplitter(doc, "outputSlug", conf, ".", 2, logger)
 	//splitter.init()
 	err = splitter.RenderMarkdown("")

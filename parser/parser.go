@@ -443,7 +443,7 @@ func (p *Parser) parseInclude(options string) (*ast.Document, error) {
 		}
 	}
 	var data []byte
-	p.log.Info(context.Background(), "parsing include file", slog.F("name", file), slog.F("leveloffset", levelOffset))
+	p.log.Debug(context.Background(), "parsing include file", slog.F("name", file), slog.F("leveloffset", levelOffset))
 	if p.f == nil {
 		return nil, fmt.Errorf("no callback, cannot get inlude file content: %v", file)
 	}
@@ -457,7 +457,7 @@ func (p *Parser) parseInclude(options string) (*ast.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.log.Info(context.Background(), "parsed include file", slog.F("name", file))
+	p.log.Debug(context.Background(), "parsed include file", slog.F("name", file))
 	if levelOffset > 0 {
 		doc.Walk(func(b ast.Block, root *ast.Document) bool {
 			h, ok := b.(*ast.Header)

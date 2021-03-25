@@ -2,13 +2,15 @@ package settings
 
 import "gopkg.in/yaml.v3"
 
-type IdMap map[string]string
+type Headers2FileMap map[string]string
 
 type Config struct {
-	Headers map[string]IdMap//file.adoc -> id -> file.md
+	Headers map[string]Headers2FileMap//file.adoc -> id -> file.md
 	CrossLinks map[string]string // maps adoc file name to its relative location: UserGuide.adoc -> ../user/
-	UrlRewrites []IdMap // if link contains a specified key, then it's replaced with the provided value
+	UrlRewrites []Headers2FileMap // if link contains a specified key, then it's replaced with the provided value
 	NavFile string
+	InputFile string
+	ArtifactsDir string
 }
 
 func Parse(data []byte) (*Config, error) {

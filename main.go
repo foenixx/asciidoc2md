@@ -28,13 +28,14 @@ func initLog(verbose bool) {
 
 
 
-var cli struct {
-	Debug bool `help:"Debug mode."`
-	Config     string `help:"Configuration file." short:"c" type:"existingfile"`
-	Slug string `optional help:"A template for split file name. Output files would have names like <slug>_[1...N].md." default:"part"`
-	SplitLevel int `optional help:"A level of the headers to split a file at." default:2`
-	Dump string `help:"Write parsed document to file."`
-	GenMap struct {
+type CLI struct {
+	Debug        bool   `help:"Debug mode."`
+	Config       string `help:"Configuration file." short:"c" type:"existingfile"`
+	Slug         string `optional help:"A template for split file name. Output files would have names like <slug>_[1...N].md." default:"part"`
+	SplitLevel   int    `optional help:"A level of the headers to split a file at." default:2`
+	Dump         string `help:"Write parsed document to file."`
+	ArtifactsDir string `optional name:"art" type:"existingdir" default:"." help:"Artifacts folder where asciidoc2md looks for .idmap files."`
+	GenMap       struct {
 		Input string `arg help:"*.adoc file to process." type:"existingfile" name:"file.adoc"`
 		WriteNav string `optional help:"Path to mkdocs.yml file to write navigation index." type:"existingfile"`
 	} `cmd:"" help:"Generate <file.adoc.idmap> file."`
@@ -44,6 +45,7 @@ var cli struct {
 		ImagePath string `help:"A relative path to the images folder." short:"im" default:"images/" `
 	} `cmd:"" help:"Convert <file.adoc> into markdown."`
 }
+var cli CLI
 
 
 //asciidoc2md input_file output_path output_file_slug image_path
@@ -72,7 +74,7 @@ func main() {
 
 }
 
-func loadConfig(configFile string) *settings.Config {
+func initConfigCLI(configFile string, opts *CLI) *settings.Config {
 	var config *settings.Config
 	if configFile != "" {
 
@@ -87,19 +89,27 @@ func loadConfig(configFile string) *settings.Config {
 	} else {
 		config = &settings.Config{}
 	}
+	if opts != nil {
+		config.ArtifactsDir = opts.ArtifactsDir
+		config.InputFile = opts.Convert.Input
+		if opts.GenMap.Input != "" {
+			config.InputFile = opts.GenMap.Input
+		}
+		config.NavFile = opts.GenMap.WriteNav
+	}
 	return config
 }
 
 func genIdMap() {
 	log.Debug(context.Background(), "genIdMap")
 	splitter := initSplitter(cli.GenMap.Input,
-		cli.Config,
 		"",
 		"",
 		cli.Slug,
 		cli.SplitLevel,
 		cli.Dump,
-		cli.GenMap.WriteNav)
+		initConfigCLI(cli.Config, &cli),
+		log)
 
 	err := splitter.GenerateIdMap()
 	if err != nil {
@@ -107,15 +117,12 @@ func genIdMap() {
 	}
 }
 
-func initSplitter(inputFile string, configFile string, imagePath string, outPath string, slug string, splitLvl int, dumpFile string, navFile string) *FileSplitter {
+func initSplitter(inputFile string, imagePath string, outPath string, slug string, splitLvl int, dumpFile string, conf *settings.Config, log slog.Logger) *FileSplitter {
 	ctx := context.Background()
 	log.Debug(ctx, "convert")
 	log.Info(ctx, "input file", slog.F("name", inputFile))
 	log.Info(ctx, "image path", slog.F("path", imagePath))
-	log.Info(ctx, "settings", slog.F("settings", configFile))
-	conf := loadConfig(configFile)
-	conf.NavFile = navFile
-	log.Debug(ctx, "config file loaded")
+
 	input, err := ioutil.ReadFile(inputFile)
 	if err != nil {
 		panic(err)
@@ -140,7 +147,14 @@ func initSplitter(inputFile string, configFile string, imagePath string, outPath
 }
 
 func convert() {
-	splitter := initSplitter(cli.Convert.Input, cli.Config, cli.Convert.ImagePath, cli.Convert.Out, cli.Slug, cli.SplitLevel, cli.Dump, "")
+	splitter := initSplitter(cli.Convert.Input,
+		cli.Convert.ImagePath,
+		cli.Convert.Out,
+		cli.Slug,
+		cli.SplitLevel,
+		cli.Dump,
+		initConfigCLI(cli.Config, &cli),
+		log)
 	err := splitter.RenderMarkdown(cli.Convert.ImagePath)
 	if err != nil {
 		panic(err)

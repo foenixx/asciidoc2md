@@ -20,6 +20,7 @@ type Converter struct {
 	log         slog.Logger
 	writerFunc  GetWriterFunc
 	writer      io.Writer
+	skipCurChapter bool
 	//writerFile  string
 	idMap	map[string]string//header id to file mapping
 }
@@ -188,7 +189,7 @@ func (c *Converter) WriteTable(t *ast.Table) {
 }
 
 func (c *Converter) WriteBlockTitle(h *ast.BlockTitle, w io.Writer) {
-	w.Write([]byte(fmt.Sprintf("_%v_\n", fixText(h.Title))))
+	w.Write([]byte(fmt.Sprintf("_%v_\n", strings.TrimSpace(fixText(h.Title)))))
 }
 
 func (c *Converter) WriteHeader(h *ast.Header, w io.Writer) {
@@ -404,8 +405,8 @@ func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
 	caption := l.Text
 	if caption == "" {
 		//shouldn't happen
-		c.log.Error(context.Background(), "empty link caption", slog.F("link", l))
-		caption = "(ссылка)"
+		c.log.Warn(context.Background(), "empty link caption", slog.F("link", l))
+		caption = l.Url
 	}
 	w.Write([]byte(fmt.Sprintf("[%s](%s)", fixText(caption), l.Url)))
 }

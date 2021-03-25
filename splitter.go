@@ -42,6 +42,12 @@ type FileSplitter struct {
 	w           *bufio.Writer  	//current writer
 }
 
+const (
+	SkipChapterMark = "<skip chapter>"
+	SkipHeaderMark = "<skip>"
+)
+
+
 func NewFileSplitter(doc *ast.Document, nameSlug string, conf *settings.Config, path string, splitLvl int, log slog.Logger) *FileSplitter {
 	return &FileSplitter{
 		doc:    doc,
@@ -76,9 +82,12 @@ func (fs *FileSplitter) RenderMarkdown(imagePath string) error {
 
 	conv := markdown.New(imagePath, nil, fs.log, func(header *ast.Header) io.Writer {
 		if header.Level < fs.level && fs.level != 1 {
-			header.Text = "<skip>"
+			header.Text = SkipHeaderMark
 		}
 		if header.Level == fs.level && header != fs.firstHeader {
+			if fs.skipChapter(header) {
+
+			}
 			err := fs.nextFile()
 			if err != nil {
 				fs.log.Error(context.Background(), err.Error())
@@ -113,13 +122,20 @@ func (fs *FileSplitter) nextFile() error {
 	fs.Close()
 	var err error
 	fs.fileName = fs.fileNames[fs.fileIndex]
+	if fs.fileName == SkipChapterMark {
+		fs.w = bufio.NewWriter(ioutil.Discard)
+		fs.file = nil
+		fs.log.Warn(context.Background(), "discard writer created")
+		return nil
+	}
+
 	fullName := filepath.Join(fs.path, fs.fileName)
 	fs.file, err = os.Create(fullName)
 	if err != nil {
 		return err
 	}
 
-	fs.log.Info(context.Background(), "output file created", slog.F("file", fullName))
+	fs.log.Debug(context.Background(), "output file created", slog.F("file", fullName))
 	fs.w = bufio.NewWriter(fs.file)
 	fs.fileIndex++
 
@@ -136,13 +152,20 @@ func (fs *FileSplitter) Close() {
 	}
 }
 
-//func (fs *FileSplitter)
+func (fs *FileSplitter) skipChapter(h *ast.Header) bool {
+	m, ko := fs.conf.Headers[fs.doc.Name][h.Text]
+	if ko && m == SkipChapterMark {
+		fs.log.Warn(context.Background(), "skipping chapter", slog.F("chapter", h.Text))
+		return true
+	}
+	return false
+}
 
 func (fs *FileSplitter) findFirstHeader() *ast.Header {
 	var hdr *ast.Header
 	fs.doc.Walk(func(b ast.Block, doc *ast.Document) bool {
 		h, ok := b.(*ast.Header)
-		if ok && h.Level == fs.level && !h.Float {
+		if ok && h.Level == fs.level && !h.Float && !fs.skipChapter(h) {
 			hdr = h
 			return false
 		}
@@ -199,24 +222,30 @@ func (fs *FileSplitter) urlRewrite(url *ast.Link, root *ast.Document) {
 		uri = rule
 	}
 
+	if !url.Internal && rule == "" {
+		// external link without rewrite rule
+		fs.log.Debug(ctx, "external link without rewrite rule", slog.F("link", url))
+		return
+	}
+
 	entry = fs.findIdMap(uri, ref)
 
-	if entry == nil && rule == "" {
+/*	if entry == nil && rule == "" {
 		//no rewrite rule && no file mapping
 		fs.log.Error(ctx, "cannot rewrite url: idmap is not found", slog.F("url", url), slog.F("doc", root.Name))
 		return
-	}
+	}*/
 	old := url.Url
 	if entry != nil {
 		url.Url = fmt.Sprintf("%v#%v", path.Join(fs.getDocPath(uri), entry.FileName), ref)
 		if url.Text == "" {
 			url.Text = entry.Caption
 		}
+		fs.log.Debug(ctx, "successfully rewrote url", slog.F("new", url.Url), slog.F("old", old))
 	} else {
-		url.Url = fmt.Sprintf("%v#%v", uri, ref)
+		fs.log.Error(ctx, "cannot rewrite url: idmap is not found", slog.F("url", url), slog.F("doc", root.Name))
+		//url.Url = fmt.Sprintf("%v#%v", uri, ref)
 	}
-
-	fs.log.Debug(ctx, "successfully rewrote url", slog.F("new", url.Url), slog.F("old", old))
 }
 
 //should be called AFTER fillIdMap
@@ -239,10 +268,7 @@ func (fs *FileSplitter) fixUrls() {
 }
 
 func (fs *FileSplitter) writeIdMap(name string, idMap IdMap) error {
-	if name == "" {
-		return errors.New("writeIdMap: name is empty")
-	}
-	f, err := os.Create(name + ".idmap")
+	f, err := os.Create(name)
 	if err != nil {
 		return err
 	}
@@ -278,7 +304,7 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 	}
 	docPath := path.Join(fs.conf.CrossLinks[fs.doc.Name], fs.fileName)
 	nav := []string{fmt.Sprintf("- %s: %s", fs.firstHeader.Text, docPath)}
-
+	skipCurChapter := false
 	fs.doc.Walk(func(b ast.Block, root *ast.Document) bool {
 
 		//fs.log.Debug(ctx, "walker block", slog.F("block", b))
@@ -290,17 +316,26 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 			hd := b.(*ast.Header)
 			//fs.log.Debug(ctx, "walking by header", slog.F("header", hd))
 			if hd.Level == fs.level && hd != fs.firstHeader && !hd.Float {
-				fs.fileName = fs.getNextFileName(hd)
+				if fs.skipChapter(hd) {
+					skipCurChapter = true
+					fs.fileName = SkipChapterMark
+
+				} else {
+					skipCurChapter = false
+					fs.fileName = fs.getNextFileName(hd)
+					docPath = path.Join(fs.conf.CrossLinks[fs.doc.Name], fs.fileName)
+					nav = append(nav, fmt.Sprintf("- %s: %s", hd.Text, docPath))
+				}
 				fs.fileNames = append(fs.fileNames, fs.fileName)
-				docPath = path.Join(fs.conf.CrossLinks[fs.doc.Name], fs.fileName)
-				nav = append(nav, fmt.Sprintf("- %s: %s", hd.Text, docPath))
 			}
-			if hd.Id != "" {
+			if hd.Id != "" && !skipCurChapter {
 				fs.appendIdMap(fs.doc.Name, hd.Id, fs.fileName, hd.Text)
 			}
 		case *ast.Bookmark:
 			//fs.log.Debug(ctx, "walking by bookmark", slog.F("header", b.(*ast.Bookmark)))
-			fs.appendIdMap(fs.doc.Name, b.(*ast.Bookmark).Literal, fs.fileName, "")
+			if  !skipCurChapter {
+				fs.appendIdMap(fs.doc.Name, b.(*ast.Bookmark).Literal, fs.fileName, "")
+			}
 		}
 		return true
 	}, nil)
@@ -346,7 +381,7 @@ func (fs *FileSplitter) findIdMap(doc string, id string) *IdMapEntry {
 	ctx := context.Background()
 	if fs.idMaps[doc] == nil {
 		//try to read *.idmap file
-		data, err := ioutil.ReadFile(doc + ".idmap")
+		data, err := ioutil.ReadFile(filepath.Join(fs.conf.ArtifactsDir, doc) + ".idmap")
 		if err != nil {
 			fs.log.Error(ctx, "cannot load idmap file", slog.F("err", err))
 			//no file, create emtpy map
@@ -376,10 +411,13 @@ func (fs *FileSplitter) init(fillMapOnly bool) error {
 	fs.firstHeader = fs.findFirstHeader()
 	fs.fileName = fs.getNextFileName(fs.firstHeader)
 	fs.fileNames = append(fs.fileNames, fs.fileName)
-	fs.fillIdMap(fillMapOnly)
+	fs.fillIdMap(false)
 	if fillMapOnly {
-		for k, m := range fs.idMaps {
-			err := fs.writeIdMap(k, m)
+		if len(fs.idMaps) != 1 {
+			return errors.New("several id maps found")
+		}
+		for _, m := range fs.idMaps {
+			err := fs.writeIdMap(filepath.Join(fs.conf.ArtifactsDir, fs.doc.Name + ".idmap"), m)
 			if err != nil {
 				return err
 			}
