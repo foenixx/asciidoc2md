@@ -234,11 +234,13 @@ var monoboldRE = regexp.MustCompile(`^\x60\*|\*\x60$`)
 // "`+++strange formatting+++`"
 var strangeFormatRE = regexp.MustCompile(`^\x60\+{3}|\+{3}\x60$`)
 var checkedRE = regexp.MustCompile(`^\[\*\]`)
-// match only single stars "*" at word boundary and ignore double stars "**"
-var boldRE = regexp.MustCompile(`([^\*]|^)\B\*\b|\b\*\B([^\*]|$)`)
-var sharpRE = regexp.MustCompile(`#(\s)`) //leave double stars "**" as-is
+// match only single stars "*" pairs at word boundary and ignore single "*" without pair and double stars "**"
+//var boldRE = regexp.MustCompile(`([^\*]|^)\B\*\b|\b\*\B([^\*]|$)`)
+var boldRE = regexp.MustCompile(`(\s|^)\*([^\s\*])(.+?)([^\s\*])\*(\s|$)`)
+var sharpSpaceRE = regexp.MustCompile(`#(\s)`) // "# text" patterns. Need to escape sharp symbol.
 var hardBreakRE = regexp.MustCompile(`\s\+$`)
 var smallTextRE = regexp.MustCompile(`\[small]#(.*?)#`)
+var sharpTextRE = regexp.MustCompile(`(#(?:[^\s[:punct:]]|_)+)`) // "#name_id some text"-like patterns outside of backticked spans.
 
 func fixString(s string, backticked bool) string {
 	// fix "`*monospace and bold*`" since it isn't allowed in markdown
@@ -250,9 +252,11 @@ func fixString(s string, backticked bool) string {
 		s = checkedRE.ReplaceAllLiteralString(s, "[x]")
 		// converting "*" (asciidoc bold) to "**" (markdown bold)
 		// no need to convert asciidoc italic "_" since it's still an italic in markdown
-		//s = boldRE.ReplaceAllLiteralString(s, "**")
-		s = boldRE.ReplaceAllString(s, "$1**$2")
-		s = sharpRE.ReplaceAllString(s, `\#$1`)
+		s = boldRE.ReplaceAllString(s, "$1**$2$3$4**$5")
+		s = sharpSpaceRE.ReplaceAllString(s, `\#$1`)
+		// replace "#name" with "`#name`"
+		s = sharpTextRE.ReplaceAllString(s, "`$1`")
+		s = strings.ReplaceAll(s, "->", "→")
 		s = strings.ReplaceAll(s, "<", "&lt;")
 		s = strings.ReplaceAll(s, ">", "&gt;")
 	}
@@ -291,6 +295,11 @@ func (c *Converter) WriteParagraph(p *ast.Paragraph, noFormatFix bool, w io.Writ
 		case *ast.Text:
 			txt := b.(*ast.Text)
 			str := txt.Text
+			if str == "\n" {
+				// convert single newline to space
+				w.Write([]byte(" "))
+				continue
+			}
 			if !noFormatFix {
 				str = fixText(str)
 			}
@@ -311,11 +320,21 @@ func (c *Converter) WriteExampleBlock(ex *ast.ExampleBlock) {
 	} else {
 		c.writer.Write([]byte("!!!"))
 	}
-	if ex.Delim.Type == token.EX_BLOCK {
-		c.writer.Write([]byte(" example\n"))
-	} else {
-		c.writer.Write([]byte(" info\n"))
+	var k string
+	switch {
+	case ex.Kind == "CAUTION":
+		//convert to "danger"
+		k = "danger"
+	case ex.Kind != "":
+		//all others
+		k = strings.ToLower(ex.Kind)
+	case ex.Delim.Type == token.EX_BLOCK:
+		//just an example block
+		k = "example"
+	default:
+		k = "info"
 	}
+	c.writer.Write([]byte(" " + k + "\n"))
 	c.WriteContainerBlock(&ex.ContainerBlock, true)
 	c.curIndent = ind
 }

@@ -270,16 +270,19 @@ func (l *Lexer) next() *token.Token {
 
 func (l *Lexer) tryString() *token.Token {
 	pos1 := l.GetState()
-	tok := l.readString()
+	tok := l.tryReadToken()
 	//we got stuck without new tokens
 	if l.position == pos1.position {
 		return l.setNewToken(token.ILLEGAL, l.line, "got stuck")
 	}
 
 	switch {
+	case tok.Type == token.FENCED_BLOCK_DELIM:
+		//fenced block
+		return l.setNewToken(token.FENCED_SYNTAX_BLOCK, l.line, l.readFencedSyntaxBlock(tok))
 	case tok.Type == token.BLOCK_DELIM:
-		// "----" syntax block
-		return l.setNewToken(token.SYNTAX_BLOCK, l.line, l.readSyntaxBlock(tok))
+		// syntax block
+		return l.setNewToken(token.SYNTAX_BLOCK, l.line, l.readSyntaxBlock(tok.Literal))
 	case tok.Type == token.TABLE:
 		//invert flag
 		l.tableFlag = !l.tableFlag
@@ -290,7 +293,7 @@ func (l *Lexer) tryString() *token.Token {
 }
 
 
-func (l *Lexer) readString() *token.Token {
+func (l *Lexer) tryReadToken() *token.Token {
 	//we are either at where the line begins or at the start of the word
 	//tokens := make([]*token.Token, 0)
 	//pos := l.position
@@ -330,6 +333,7 @@ func (l *Lexer) readString() *token.Token {
 }
 
 var hrefRE = regexp.MustCompile(`^((?:(?:https?:\/\/)|link:)\S+?)(?:\s|$|\[)`)
+var fencedRE = regexp.MustCompile(`^\x60{3}\s*(\S*)\s*$`)
 
 func (l *Lexer) lookupInlineKeyword(w string) (*token.Token, int) {
 	switch {
@@ -375,7 +379,7 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 	case strings.HasPrefix(w, "----"): //block delimiter
 		// actual literal could have trailing spaces, let's don't bother trimming them
 		return &token.Token{Type: token.BLOCK_DELIM, Line: l.line, Literal: "----"}, len(w)
-	case strings.HasPrefix(w, "image:"): //block image
+	case strings.HasPrefix(w, "image::"): //block image
 		return &token.Token{Type: token.BLOCK_IMAGE, Line: l.line, Literal: w}, len(w)
 	case strings.HasPrefix(w,"****"):
 		return &token.Token{Type: token.SIDEBAR, Line: l.line, Literal: w}, len(w)
@@ -403,14 +407,17 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 			// paragraph concatenation with trailing spaces
 			return &token.Token{Type: token.CONCAT_PAR, Line: l.line, Literal: w}, len(w)
 		}
-
+		matches = fencedRE.FindStringSubmatch(w)
+		if len(matches) == 2 {
+			return &token.Token{Type: token.FENCED_BLOCK_DELIM, Line: l.line, Literal: w}, len(w)
+		}
 	}
 	return nil, 0
 }
 
 
-func (l *Lexer) readSyntaxBlock(delim *token.Token) string {
-	l.readRune() //skip newline
+func (l *Lexer) readSyntaxBlock(delim string) string {
+	l.readRune() //skip newline after block delimiter
 	pos := l.position
 	var line string
 	var to int
@@ -418,7 +425,7 @@ func (l *Lexer) readSyntaxBlock(delim *token.Token) string {
 		to = l.position
 		line = l.readLine()
 		// read without tokenizing till the same delimiter or ...
-		if strings.TrimSpace(line) == delim.Literal {
+		if strings.TrimSpace(line) == delim {
 			break
 		}
 		// ... or EOF
@@ -429,6 +436,15 @@ func (l *Lexer) readSyntaxBlock(delim *token.Token) string {
 		l.readNewLine() //skip newline
 	}
 	return l.input[pos:to]
+}
+
+func (l *Lexer) readFencedSyntaxBlock(delim *token.Token) string {
+	// first line of fenced block literal indicates code language and could be empty:
+	//   sql\n... text ...
+	// or
+	//   \n... text ...
+	// without closing "```"
+	return fencedRE.FindStringSubmatch(delim.Literal)[1] + "\n" + l.readSyntaxBlock("```")
 }
 
 // reads "[source,json]" like lines

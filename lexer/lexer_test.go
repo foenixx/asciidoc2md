@@ -7,6 +7,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
+	"regexp"
 	"testing"
 )
 
@@ -158,7 +159,7 @@ var cases = []lexerTestCase{
 		},
 	},
 	{
-		name: "case 3: images",
+		name: "images",
 		input: `image::image15_3.png[]
 
 После внесения изменений image:image15_3.png[] схему данных необходимо сохранить.
@@ -175,6 +176,13 @@ image::image15_4.png[]`,
 			{token.NEWLINE, "\n"},
 			{token.BLOCK_IMAGE, "image::image15_4.png[]"},
 			{token.EOF, ""},
+		},
+	},
+	{
+		name: "images 2",
+		input: `image:image1.png[] text1`,
+		tests: []lt{
+			{token.INLINE_IMAGE, "image:image1.png[]"}, {token.STR, " text1"}, {token.EOF, ""},
 		},
 	},
 	{
@@ -299,15 +307,23 @@ text 1
 +
 def list 2::
 +
-text 2
-+
-def list 3::
-+
-text 3`,
+text 2`,
 		tests: []lt{
-			{token.STR, "text1"}, {token.NEWLINE, "\n"},
-			{token.COMMENT, "// text2"}, {token.NEWLINE, "\n"},
-			{token.STR, "text3"}, {token.EOF, ""},
+			{token.DEFL_MARK, "def list 1"}, {token.NEWLINE, "\n"},
+			{token.CONCAT_PAR, "+"}, {token.NEWLINE, "\n"},
+			{token.STR, "text 1"}, {token.NEWLINE, "\n"},
+			{token.CONCAT_PAR, "+"}, {token.NEWLINE, "\n"},
+			{token.DEFL_MARK, "def list 2"}, {token.NEWLINE, "\n"},
+			{token.CONCAT_PAR, "+"}, {token.NEWLINE, "\n"},
+			{token.STR, "text 2"}, {token.EOF, ""},
+		},
+
+	},
+	{
+		name: "fenced block",
+		input: "``` sql\n  line1  \nline2\n```",
+		tests: []lt{
+			{token.FENCED_SYNTAX_BLOCK, "sql\n  line1  \nline2\n"}, {token.EOF, ""},
 		},
 
 	},
@@ -376,18 +392,14 @@ var dcase = lexerTestCase {
 
 func TestDbg(t *testing.T) {
 	input :=
-`
-def list 1::
-+
-text 1
-+
-def list 2::
-+
-text 2
-+
-def list 3::
-+
-text 3
+		`
+В области предпросмотра есть кнопки для управления областью (кнопки доступны только когда в области предпросмотра не открыт файл):
+
+image:image190.png[] - скрыть область предпросмотра файлов. Снова отобразить ее можно будет с помощью контекстного меню в списке файлов;
+
+image:image191.png[] - поменять местами область карточки и область предпросмотра файлов;
+
+image:image192.png[] - разделяет в равных долях область карточки и область предпросмотра файлов (актуально, если пользователем была перемещена вертикальная граница области карточки/области предпросмотра).
 `
 	//input := "NOTE: Admonition text"
 
@@ -398,7 +410,7 @@ text 3
 
 func TestFile1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	input, err := ioutil.ReadFile("../docs/beginners/BeginnersGuide.adoc")
+	input, err := ioutil.ReadFile("../test.adoc")
 	if !assert.NoError(t, err) {
 		return
 	}
@@ -409,4 +421,13 @@ func TestFile1(t *testing.T) {
 	//tc.input = string(input)
 	//
 	//testACase(t, &tc, logger)
+}
+
+func TestSomething(t *testing.T) {
+	var fencedRE = regexp.MustCompile(`^\x60{3}\s*(\S*)\s*$`)
+	input := "d```  "
+	m := fencedRE.FindStringSubmatch(input)
+	t.Log(m)
+	t.Log(len(m))
+	t.Fail()
 }

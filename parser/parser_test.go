@@ -51,8 +51,9 @@ document:
           paragraph:
             text: More text.
           admonition: NOTE
-            paragraph:
-              text: Admonition text.
+            container block:
+              paragraph:
+                text: Admonition text.
       item:
         container block:
           paragraph:
@@ -224,6 +225,30 @@ document:
         text: text 3
   list end`,
 	},
+	{
+		name: "fenced block",
+		input: "``` sql\n  line1  \nline2\n```",
+		expected: `
+document:
+  syntax block: 
+  line1  
+line2
+`,
+	},
+	{
+		name: "block admonition",
+		input: `
+[NOTE]
+====
+Примеры выполняются на карточке типа "Дополнительное соглашение".
+====
+`,
+		expected: `
+document:
+  admonition block: NOTE
+    paragraph:
+      text: Примеры выполняются на карточк...а "Дополнительное соглашение".`,
+	},
 }
 
 func testACase(t *testing.T, tc *parserTestCase, log slog.Logger) {
@@ -275,7 +300,7 @@ func Test1(t *testing.T) {
 	testAFile(t, "../docs/beginners/BeginnersGuide.adoc", "test.out", logger)
 }
 
-func TestParser(t *testing.T) {
+func TestAllCases(t *testing.T) {
 	logger := slogtest.Make(t, nil)
 	logger.Info(context.Background(), "log message")
 
@@ -287,17 +312,15 @@ func TestParser(t *testing.T) {
 var case1 = parserTestCase{
 name: "debug",
 input:
-`def list 1::
-+
-text 1
-+
-def list 2::
-+
-text 2
-+
-def list 3::
-+
-text 3`,
+`
+В области предпросмотра есть кнопки для управления областью (кнопки доступны только когда в области предпросмотра не открыт файл):
+
+image:image190.png[] - скрыть область предпросмотра файлов. Снова отобразить ее можно будет с помощью контекстного меню в списке файлов;
+
+image:image191.png[] - поменять местами область карточки и область предпросмотра файлов;
+
+image:image192.png[] - разделяет в равных долях область карточки и область предпросмотра файлов (актуально, если пользователем была перемещена вертикальная граница области карточки/области предпросмотра).
+`,
 expected:
 ``,
 }

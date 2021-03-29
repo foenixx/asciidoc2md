@@ -4,6 +4,7 @@ import (
 	"asciidoc2md/token"
 	"asciidoc2md/utils"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -49,9 +50,13 @@ func (b *ContainerBlock) String() string {
 	return b.StringWithIndent("")
 }
 
-func (b *ContainerBlock) StringWithIndent(indent string) string {
+func (b *ContainerBlock) StringWithHeader(indent string, header string) string {
 	str := strings.Builder{}
-	str.WriteString(fmt.Sprintf("\n%scontainer block:", indent))
+	if header == "" {
+		header = "container block:"
+	}
+	str.WriteString(fmt.Sprintf("\n%s%s", indent, header))
+
 	for _, blok := range b.Blocks {
 		if blok != nil {
 			str.WriteString(blok.StringWithIndent(indent + "  "))
@@ -60,6 +65,10 @@ func (b *ContainerBlock) StringWithIndent(indent string) string {
 		}
 	}
 	return str.String()
+
+}
+func (b *ContainerBlock) StringWithIndent(indent string) string {
+	return b.StringWithHeader(indent, "")
 }
 
 type Document struct {
@@ -121,21 +130,29 @@ type ExampleBlock struct {
 	ContainerBlock
 	Options string
 	Collapsible bool
+	Kind string
 	Delim *token.Token
 }
 
 var _ Walker = (*ExampleBlock)(nil)
 
+var admonitionRE = regexp.MustCompile(`(?i)NOTE|TIP|IMPORTANT|WARNING|CAUTION`)
 func (ex *ExampleBlock)	ParseOptions(opts string) {
 	ex.Options = opts
 	if strings.Contains(opts, "collapsible") {
 		ex.Collapsible = true
 	}
+	ex.Kind = admonitionRE.FindString(opts)
 }
 
 func (ex *ExampleBlock) StringWithIndent(indent string) string {
-	s := ex.ContainerBlock.StringWithIndent(indent)
-	return strings.Replace(s, "container", "example", 1)
+	var h string
+	if ex.Kind == "" {
+		h = "example block:"
+	} else {
+		h = "admonition block: " + ex.Kind
+	}
+	return ex.ContainerBlock.StringWithHeader(indent, h)
 }
 
 

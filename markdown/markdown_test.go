@@ -103,10 +103,10 @@ func TestConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 	input :=
 `
-[cols="",]
-|=======================================================================
-|Вызвать левую панель меню можно, нажав сочетание клавиш [Shift+Win], а правую – [Ctrl+Win].
-|=======================================================================
+На вкладке *Условие* можно задать условие, которое определяет, выполнится ли эта группа, когда маршрут до нее дойдет.
+
+* *SQL условие* - условие можно задать в форме запроса SQL.
+* *Условное выражение* - в этом поле можно задать условие в синтаксисе C#.
 `
 	inc := ``
 	p := parser.New(input, func(name string) ([]byte, error) {
@@ -128,6 +128,7 @@ func TestFixString(t *testing.T) {
 	assert.Equal(t, "`bc de`", fixString("`*bc de*`", true))
 	assert.Equal(t, "[x] abcd", fixString("[*] abcd", false))
 	assert.Equal(t, "some **bold** text and mi**dd**le and *)", fixString("some *bold* text and mi**dd**le and *)", false))
-	assert.Equal(t, `#abc \# de`, fixString("#abc # de", false))
+	assert.Equal(t, "`#abc_id` \\# de", fixString("#abc_id # de", false))
 	assert.Equal(t, `&lt;&gt;`, fixString("<>", false))
+	assert.Equal(t, "**SQL условие** - условие", fixText(`*SQL условие* - условие`))
 }

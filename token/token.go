@@ -23,8 +23,10 @@ const (
 	// Values
 	STR
 	SYNTAX_BLOCK
+	FENCED_SYNTAX_BLOCK
 	// Keywords
 	BLOCK_DELIM // "----" block delimiter
+	FENCED_BLOCK_DELIM // "```"
 	BLOCK_OPTS // "[source,json]" code block options
 	INDENT
 	HEADER
@@ -59,8 +61,10 @@ NEWLINE: "NEWLINE",
 //: "//", Values
 STR: "STR",
 SYNTAX_BLOCK: "SYNTAX_BLOCK",
+FENCED_SYNTAX_BLOCK: "FENCED_SYNTAX_BLOCK",
 //: "//", Keywords
 BLOCK_DELIM: "BLOCK_DELIM", // "----" block delimiter
+FENCED_BLOCK_DELIM: "FENCED_BLOCK_DELIM",
 BLOCK_OPTS: "BLOCK_OPTS",  // "[source,json]" code block options
 INDENT: "INDENT",
 HEADER: "HEADER",

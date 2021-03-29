@@ -40,8 +40,15 @@ func New(input string, f IncludeFunc, logger slog.Logger) *Parser {
 }
 
 func (p *Parser) advance() bool {
+	return p.advanceInternal(true)
+}
+
+func (p *Parser) advanceInternal(logErr bool)  bool {
 	//empty tokens list
 	if len(p.tokens) == 0 || p.next == len(p.tokens) {
+		if logErr {
+			p.log.Error(context.Background(), "cannot advance token", slog.F("current token", p.tok))
+		}
 		return false
 	}
 
@@ -52,14 +59,7 @@ func (p *Parser) advance() bool {
 		p.prevTok = p.tokens[p.next- 1]
 	}
 	p.next += 1
-	/*
-	if p.next == len(p.tokens) {
-		// we reached the end of the tokens list
-		p.nextTok = nil
-	} else {
-		p.nextTok = p.tokens[p.next]
-	}
-	 */
+
 	return true
 }
 
@@ -108,7 +108,7 @@ func (p *Parser) Parse(name string) (*ast.Document, error) {
 	p.readAll()
 
 forLoop:
-	for p.advance() {
+	for p.advanceInternal(false) {
 		switch {
 		case p.tok.Type == token.EOF:
 			break forLoop
@@ -183,12 +183,17 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		return p.parseExampleBlock(options, p.tok)
 	case p.tok.Type == token.TABLE:
 		return p.parseTable(options)
+	case p.tok.Type == token.FENCED_SYNTAX_BLOCK:
+		//sb := &ast.SyntaxBlock{Literal: p.tok.Literal}
+		nl := strings.Index(p.tok.Literal, "\n")
+		sb := &ast.SyntaxBlock{Literal: p.tok.Literal[nl:]}
+		sb.SetOptions(p.tok.Literal[:nl])
+		p.advance()
+		return sb, nil
 	case p.tok.Type == token.SYNTAX_BLOCK:
 		sb := &ast.SyntaxBlock{Literal: p.tok.Literal}
 		sb.SetOptions(options)
-		if !p.advance() {
-			return nil, ErrCannotAdvance
-		}
+		p.advance()
 		return sb, nil
 	case p.tok.Type == token.BOOKMARK:
 		return p.parseBookmark()
@@ -220,11 +225,11 @@ func (p *Parser) isParagraph(tok *token.Token) bool {
 }
 
 func (p *Parser) isParagraphEnd() bool {
-	if p.tok.Type == token.NEWLINE && p.isParagraph(p.peekToken(1)) {
+/*	if p.tok.Type == token.NEWLINE && p.isParagraph(p.peekToken(1)) {
 		//ignore and skip single NEWLINE
 		p.advance()
 		return false
-	}
+	}*/
 
 	return !p.isParagraph(p.tok)
 }
@@ -362,31 +367,33 @@ func (p *Parser) parseHeader(id string, options string) (*ast.Header, error) {
 func (p *Parser) parseParagraph() (*ast.Paragraph, error) {
 	var par ast.Paragraph
 	for {
-		switch p.tok.Type {
-		case token.URL:
+		switch {
+		case p.tok.Type == token.URL:
 			link, err := p.parseLink()
 			if err != nil {
 				return nil, err
 			}
 			par.Add(link)
-		case token.STR:
+		case p.tok.Type == token.STR:
 			par.Add(&ast.Text{Text: p.tok.Literal})
-			// EOF reached
-			if !p.advance() {
-				return nil, ErrCannotAdvance
-			}
-		case token.INLINE_IMAGE:
+			p.advance()
+		case p.tok.Type == token.INLINE_IMAGE:
 			im, err := p.parseInlineImage()
 			if err != nil {
 				return nil, err
 			}
 			par.Add(im)
-		case token.INT_LINK:
+		case p.tok.Type == token.INT_LINK:
 			link, err := p.parseInternalLink()
 			if err != nil {
 				return nil, err
 			}
 			par.Add(link)
+		}
+		if p.tok.Type == token.NEWLINE && p.isParagraph(p.peekToken(1)) {
+			//single line break works as a space
+			par.Add(&ast.Text{Text: "\n"})
+			p.advance()
 		}
 		// read until double NEWLINE or list marker (which means we're inside the list) or "+" paragraph concatenation
 		if p.isParagraphEnd() {
