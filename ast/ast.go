@@ -134,6 +134,14 @@ type ExampleBlock struct {
 	Delim *token.Token
 }
 
+type ListBlock struct {
+	ContainerBlock
+}
+
+func (ex *ListBlock) StringWithIndent(indent string) string {
+	return ex.ContainerBlock.StringWithHeader(indent, "list block:")
+}
+
 var _ Walker = (*ExampleBlock)(nil)
 
 var admonitionRE = regexp.MustCompile(`(?i)NOTE|TIP|IMPORTANT|WARNING|CAUTION`)
@@ -295,7 +303,7 @@ func (sb *SyntaxBlock) SetOptions(options string) {
 }
 
 func (sb *SyntaxBlock) StringWithIndent(indent string) string {
-	return fmt.Sprintf("\n%ssyntax block: %s", indent, utils.ShortenString(sb.Literal, 30, 30))
+	return fmt.Sprintf("\n%ssyntax block: %q", indent, utils.ShortenString(sb.Literal, 30, 30))
 }
 
 func (sb *SyntaxBlock) String() string {

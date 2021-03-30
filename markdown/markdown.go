@@ -379,6 +379,8 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 			c.WriteDocument(b.(*ast.Document))
 		case *ast.ContainerBlock:
 			c.WriteContainerBlock(b.(*ast.ContainerBlock),firstLineIndent)
+		case *ast.ListBlock:
+			c.WriteContainerBlock(&b.(*ast.ListBlock).ContainerBlock,firstLineIndent)
 		case *ast.HorLine:
 			c.WriteHorLine(b.(*ast.HorLine), c.writer)
 		case *ast.Table:

@@ -87,22 +87,26 @@ func TestNextToken(t *testing.T) {
 
 type (
 	lexerTestCase struct {
-		name string
-		input string
-		tests []lt
+		name     string
+		input    string
+		expected []lt
 	}
 	lexerTest struct {
-		expectedType token.TokenType
-		expectedLiteral string
+		typ token.TokenType
+		lit string
 	}
 	lt lexerTest //short alias
+)
+var (
+	nl = lt{token.NEWLINE, "\n"}
+	eof = lt{token.EOF, ""}
 )
 
 var cases = []lexerTestCase{
 	{
 		name:  "test 1",
 		input: "\r текст с отступом\nтекст с пробелом после \r\n\n\rкакой-то текст",
-		tests: []lt{
+		expected: []lt{
 			{token.NEWLINE, "\r"},
 			{token.INDENT, " "},
 			{token.STR, "текст с отступом"},
@@ -128,7 +132,7 @@ var cases = []lexerTestCase{
 == Заголовок 2
 строка 3
 `,
-		tests: []lt{
+		expected: []lt{
 			{token.HEADER, "="},
 			{token.STR, "Заголовок 1"},
 			{token.NEWLINE, "\n"},
@@ -165,7 +169,7 @@ var cases = []lexerTestCase{
 После внесения изменений image:image15_3.png[] схему данных необходимо сохранить.
 
 image::image15_4.png[]`,
-		tests: []lt{
+		expected: []lt{
 			{token.BLOCK_IMAGE, "image::image15_3.png[]"},
 			{token.NEWLINE, "\n"},
 			{token.NEWLINE, "\n"},
@@ -181,7 +185,7 @@ image::image15_4.png[]`,
 	{
 		name: "images 2",
 		input: `image:image1.png[] text1`,
-		tests: []lt{
+		expected: []lt{
 			{token.INLINE_IMAGE, "image:image1.png[]"}, {token.STR, " text1"}, {token.EOF, ""},
 		},
 	},
@@ -194,7 +198,7 @@ image::image15_4.png[]`,
 *not a list
 *** list3
 * list4`,
-		tests: []lt{
+		expected: []lt{
 			{token.NL_MARK, "."}, {token.STR, "list1"}, {token.NEWLINE, "\n"},
 			{token.NL_MARK, ".."}, {token.STR, "list2"}, {token.NEWLINE, "\n"},
 			{token.BLOCK_TITLE, `not a list`}, {token.NEWLINE, "\n"},
@@ -204,12 +208,34 @@ image::image15_4.png[]`,
 		},
 	},
 	{
+		name: "list boundary",
+		input:
+		`* list1
++
+--
+text 1
+
+** list 11
+
+text 2
+--`,
+		expected: []lt{
+			{token.L_MARK, "*"}, {token.STR, "list1"}, nl,
+			{token.CONCAT_PAR, "+"}, nl,
+			{token.L_BOUNDARY, "--"}, nl,
+			{token.STR, "text 1"}, nl, nl,
+			{token.L_MARK, "**"}, {token.STR, "list 11"}, nl, nl,
+			{token.STR, "text 2"}, nl,
+			{token.L_BOUNDARY, "--"}, eof,
+		},
+	},
+	{
 		name: "syntax block",
 		input:
 		`----
 "DocLoad.OutputFolderFormat": "yyyy-MM-dd_HH-mm-ss"
 ---- `,
-		tests: []lt{
+		expected: []lt{
 			{token.SYNTAX_BLOCK, `"DocLoad.OutputFolderFormat": "yyyy-MM-dd_HH-mm-ss"` + "\n"},
 			{token.EOF, ""},
 		},
@@ -219,7 +245,7 @@ image::image15_4.png[]`,
 		input:
 		`.title 1
 some text`,
-		tests: []lt{
+		expected: []lt{
 			{token.BLOCK_TITLE, `title 1`},
 			{token.NEWLINE, "\n"},
 			{token.STR, `some text`},
@@ -232,7 +258,7 @@ some text`,
 Если в правиле доступа... //EOF то
 в противном ---- случае ==== никаких____
 ----`,
-		tests: []lt{
+		expected: []lt{
 			{token.EX_BLOCK, `====`},{token.NEWLINE, "\n"},
 			{token.STR, `Если в правиле доступа... //EOF то`},{token.NEWLINE, "\n"},
 			{token.STR, `в противном ---- случае ==== никаких____`},{token.NEWLINE, "\n"},
@@ -248,7 +274,7 @@ some text`,
 	|text5|text6
 |===
 | text7 | text8|`,
-		tests: []lt{
+		expected: []lt{
 			{token.TABLE, `|===`},{token.NEWLINE, "\n"},
 			{token.COLUMN, `|`}, {token.STR, " text1 "},
 				{token.COLUMN, `|`}, {token.STR, " text2"},{token.COLUMN, `|`},
@@ -265,7 +291,7 @@ some text`,
 	{
 		name: "bookmark",
 		input: "[[bookmark1]]**Структура `json` с опциями слияния, [[bookmark2]]описание свойств, их типы и значения по умолчанию:**",
-		tests: []lt{
+		expected: []lt{
 			{token.BOOKMARK, "bookmark1"},{token.STR, "**Структура `json` с опциями слияния, "},
 			{token.BOOKMARK, "bookmark2"},{token.STR, "описание свойств, их типы и значения по умолчанию:**"},
 			{token.EOF, ""},
@@ -274,7 +300,7 @@ some text`,
 	{
 		name: "admonition",
 		input: "NOTE: Admonition text",
-		tests: []lt{
+		expected: []lt{
 			{token.ADMONITION, "NOTE"},{token.STR, "Admonition text"},
 			{token.EOF, ""},
 		},
@@ -282,7 +308,7 @@ some text`,
 	{
 		name: "links",
 		input: "text1 https://olle[text2] \ntext3",
-		tests: []lt{
+		expected: []lt{
 			{token.STR, "text1 "}, {token.URL, "https://olle"},
 				{token.LINK_NAME, "text2"},{token.STR, " "}, {token.NEWLINE, "\n"},
 			{token.STR, "text3"}, {token.EOF, ""},
@@ -291,7 +317,7 @@ some text`,
 	{
 		name: "comments",
 		input: "text1\n// text2\ntext3",
-		tests: []lt{
+		expected: []lt{
 			{token.STR, "text1"}, {token.NEWLINE, "\n"},
 			{token.COMMENT, "// text2"}, {token.NEWLINE, "\n"},
 			{token.STR, "text3"}, {token.EOF, ""},
@@ -308,7 +334,7 @@ text 1
 def list 2::
 +
 text 2`,
-		tests: []lt{
+		expected: []lt{
 			{token.DEFL_MARK, "def list 1"}, {token.NEWLINE, "\n"},
 			{token.CONCAT_PAR, "+"}, {token.NEWLINE, "\n"},
 			{token.STR, "text 1"}, {token.NEWLINE, "\n"},
@@ -322,7 +348,7 @@ text 2`,
 	{
 		name: "fenced block",
 		input: "``` sql\n  line1  \nline2\n```",
-		tests: []lt{
+		expected: []lt{
 			{token.FENCED_SYNTAX_BLOCK, "sql\n  line1  \nline2\n"}, {token.EOF, ""},
 		},
 
@@ -349,13 +375,13 @@ func testACase(t *testing.T, tc *lexerTestCase, logger slog.Logger) {
 	//t.Logf("type: %v, literal: %v", tok2.Type, tok2.Literal)
 	tok := l.NextToken()
 	i := 0
-	for tok != nil && i < len(tc.tests) {
+	for tok != nil && i < len(tc.expected) {
 		logger.Debug(context.Background(), tok.String())
 
-		if !assert.Equal(t, tc.tests[i].expectedType, tok.Type, "invalid type! case: %v, step: %v", tc.name, i+1) {
+		if !assert.Equal(t, tc.expected[i].typ, tok.Type, "invalid type! case: %v, step: %v, token: %v", tc.name, i+1, tok) {
 				return
 			}
-		if !assert.Equal(t, tc.tests[i].expectedLiteral, tok.Literal, "invalid literal! case: %v, step: %v", tc.name, i+1) {
+		if !assert.Equal(t, tc.expected[i].lit, tok.Literal, "invalid literal! case: %v, step: %v", tc.name, i+1) {
 			return
 		}
 
@@ -364,7 +390,7 @@ func testACase(t *testing.T, tc *lexerTestCase, logger slog.Logger) {
 	}
 
 	//no more expected tokens
-	if !assert.Equal(t, i, len(tc.tests)) {
+	if !assert.Equal(t, i, len(tc.expected)) {
 			return
 		}
 	assert.Nil(t, tok)
@@ -384,7 +410,7 @@ func TestAllCases(t *testing.T) {
 var dcase = lexerTestCase {
 		name: "bookmark",
 		input: "[[cardmergeoptionsdetails]]**Структура `json` с опциями слияния, [[bookmark]]описание свойств, их типы и значения по умолчанию:**",
-		tests: []lt{
+		expected: []lt{
 			{token.BOOKMARK, "cardmergeoptionsdetails"},{token.STR, "**Структура `json` с опциями слияния, описание свойств, их типы и значения по умолчанию:**"},
 			{token.EOF, ""},
 		},

@@ -156,6 +156,8 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 		p.log.Warn(ctx, "ignore comment line", slog.F("token", p.tok))
 		if !p.advance() { return nil, ErrCannotAdvance }
 		return nil, nil
+	case p.tok.Type == token.L_BOUNDARY:
+		return p.parseListBlock(p.tok)
 	case p.isListMarker():
 		return p.parseList(nil)
 	case p.tok.Type == token.BLOCK_TITLE:
@@ -283,6 +285,29 @@ func (p *Parser) parseLink() (*ast.Link, error) {
 	return &link, nil
 }
 
+
+func (p *Parser) parseBlockBody(delim *token.Token) (*ast.ContainerBlock, error) {
+	var cb = ast.ContainerBlock{}
+	for p.tok.Type != delim.Type && p.tok.Type != token.EOF {
+		if p.tok.Type == token.NEWLINE {
+			p.advance()
+		} else {
+			b, err := p.parseBlock()
+			if err != nil {
+				return nil, err
+			}
+			if b != nil {
+				cb.Add(b)
+			}
+		}
+	}
+	if p.tok.Type == delim.Type {
+		//skip closing token
+		p.advance()
+	}
+	return &cb, nil
+}
+
 func (p *Parser) parseExampleBlock(options string, delim *token.Token) (*ast.ExampleBlock, error) {
 	var ex ast.ExampleBlock
 	ex.ParseOptions(options)
@@ -295,28 +320,11 @@ func (p *Parser) parseExampleBlock(options string, delim *token.Token) (*ast.Exa
 		return nil, fmt.Errorf("parse example block: cannot advance tokens")
 	}
 
-	for p.tok.Type != delim.Type && p.tok.Type != token.EOF {
-
-		if p.tok.Type == token.NEWLINE {
-			if !p.advance() {
-				return nil, fmt.Errorf("parse block: cannot advance tokens")
-			}
-		} else {
-			b, err := p.parseBlock()
-			if err != nil {
-				return nil, err
-			}
-			if b != nil {
-				ex.Add(b)
-			}
-		}
+	cb, err := p.parseBlockBody(delim)
+	if err != nil {
+		return nil, err
 	}
-	if p.tok.Type == delim.Type {
-		//skip closing token
-		if !p.advance() {
-			return nil, fmt.Errorf("parse example block: cannot advance tokens")
-		}
-	}
+	ex.Blocks = cb.Blocks
 	return &ex, nil
 }
 
@@ -520,10 +528,19 @@ l1:
 			}
 
 		default:
-			//are we inside example block?
+			//are we inside example block and this is its` ending token?
 			if p.curBlock != nil && (p.tok.Type == token.EX_BLOCK || p.tok.Type == token.SIDEBAR) {
 				exb, yes := p.curBlock.(*ast.ExampleBlock)
 				if yes && exb.Delim.Type == p.tok.Type {
+					break l1
+				}
+			}
+
+			if p.tok.Type == token.L_BOUNDARY && p.curBlock != nil {
+				// check if it is the end of the list block
+				_, yes := p.curBlock.(*ast.ListBlock)
+				if yes {
+					// yes it is
 					break l1
 				}
 			}
@@ -538,6 +555,23 @@ l1:
 		}
 	}
 	return &item, nil
+}
+
+func (p *Parser) parseListBlock(delim *token.Token) (*ast.ListBlock, error) {
+	var lb ast.ListBlock
+
+	defer func(old ast.Block) { p.curBlock = old }(p.curBlock)
+	p.curBlock = &lb
+
+	//skip delimiter + newline tokens
+	p.advanceMany(2)
+
+	cb, err := p.parseBlockBody(delim)
+	if err != nil {
+		return nil, err
+	}
+	lb.ContainerBlock = *cb
+	return &lb, nil
 }
 
 /* parseList is called for the 1st list item
@@ -600,7 +634,8 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 	for {
 		switch {
 		case p.isDoubleNewline() || p.tok.Type == token.EOF ||
-				p.tok.Type == token.EX_BLOCK || p.tok.Type == token.SIDEBAR || p.isColumn() || p.tok.Type == token.TABLE:
+				p.tok.Type == token.EX_BLOCK || p.tok.Type == token.SIDEBAR || p.isColumn() || p.tok.Type == token.TABLE ||
+				p.tok.Type == token.L_BOUNDARY:
 			//end of the list
 			//p.nestedListLevel = 0
 			return &list, nil

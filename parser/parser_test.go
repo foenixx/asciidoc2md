@@ -230,10 +230,7 @@ document:
 		input: "``` sql\n  line1  \nline2\n```",
 		expected: `
 document:
-  syntax block: 
-  line1  
-line2
-`,
+  syntax block: "\n  line1  \nline2\n"`,
 	},
 	{
 		name: "block admonition",
@@ -248,6 +245,81 @@ document:
   admonition block: NOTE
     paragraph:
       text: Примеры выполняются на карточк...а "Дополнительное соглашение".`,
+	},
+	{
+		name: "list block",
+		input: `
+* list1
++
+--
+text 1
+
+** list 11
++
+text 2
++
+** list 12
+
+text 2
+--
++
+* list 2`,
+		expected: `
+document:
+  list begin: (0/false/*)
+  item:
+    container block:
+      paragraph:
+        text: list1
+      list block:
+        paragraph:
+          text: text 1
+        list begin: (0/false/**)
+        item:
+          container block:
+            paragraph:
+              text: list 11
+            paragraph:
+              text: text 2
+        item:
+          container block:
+            paragraph:
+              text: list 12
+        list end
+        paragraph:
+          text: text 2
+  item:
+    container block:
+      paragraph:
+        text: list 2
+  list end`,
+	},
+	{
+		name: "list block delimiter next line to syntax block end",
+		input: `
+--
+* list 1
++
+[sql]
+----
+  sql1
+----
+--
+
+text 1
+`,
+		expected: `
+document:
+  list block:
+    list begin: (0/false/*)
+    item:
+      container block:
+        paragraph:
+          text: list 1
+        syntax block: "  sql1\n"
+    list end
+  paragraph:
+    text: text 1`,
 	},
 }
 
@@ -297,7 +369,7 @@ func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
 
 func Test1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	testAFile(t, "../docs/beginners/BeginnersGuide.adoc", "test.out", logger)
+	testAFile(t, "../test.adoc", "test.out", logger)
 }
 
 func TestAllCases(t *testing.T) {
@@ -313,14 +385,29 @@ var case1 = parserTestCase{
 name: "debug",
 input:
 `
-В области предпросмотра есть кнопки для управления областью (кнопки доступны только когда в области предпросмотра не открыт файл):
+= Header 1
 
-image:image190.png[] - скрыть область предпросмотра файлов. Снова отобразить ее можно будет с помощью контекстного меню в списке файлов;
+* list 1
++
+--
+text 1
 
-image:image191.png[] - поменять местами область карточки и область предпросмотра файлов;
+** list 11
++
+text 2
++
+** list 12
++
+text 2
++
+[sql]
+----
+sql
+----
 
-image:image192.png[] - разделяет в равных долях область карточки и область предпросмотра файлов (актуально, если пользователем была перемещена вертикальная граница области карточки/области предпросмотра).
-`,
+--
+
+= Header 2`,
 expected:
 ``,
 }
@@ -328,7 +415,8 @@ expected:
 func TestParser_DebugCase(t *testing.T) {
 	logger := slogtest.Make(t, nil)
 	logger.Info(context.Background(), "log message")
-
+	//case1.input = strings.ReplaceAll(case1.input, "<fence>", "```")
+	case1 := cases[len(cases)-1]
 	testACase(t, &case1, logger)
 }
 

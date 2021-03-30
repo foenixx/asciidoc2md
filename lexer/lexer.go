@@ -379,6 +379,9 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 	case strings.HasPrefix(w, "----"): //block delimiter
 		// actual literal could have trailing spaces, let's don't bother trimming them
 		return &token.Token{Type: token.BLOCK_DELIM, Line: l.line, Literal: "----"}, len(w)
+	case strings.HasPrefix(w, "--"): //list boundary
+		// actual literal could have trailing spaces, let's don't bother trimming them
+		return &token.Token{Type: token.L_BOUNDARY, Line: l.line, Literal: "--"}, len(w)
 	case strings.HasPrefix(w, "image::"): //block image
 		return &token.Token{Type: token.BLOCK_IMAGE, Line: l.line, Literal: w}, len(w)
 	case strings.HasPrefix(w,"****"):

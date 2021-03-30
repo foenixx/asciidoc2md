@@ -33,6 +33,7 @@ const (
 	HOR_LINE
 	L_MARK //not-numbered list marker
 	NL_MARK //numbered list  marker
+	L_BOUNDARY // "--" 	list block boundary
 	DEFL_MARK //definition list marker "text::"
 	BLOCK_IMAGE
 	INLINE_IMAGE
@@ -89,6 +90,7 @@ INT_LINK: "INT_LINK", //internal link "<<link,name>>"
 INCLUDE: "INCLUDE",  //include directive "include::RoutingGuide.adoc[leveloffset=+1]"
 COMMENT: "COMMENT",
 SIDEBAR: "SIDEBAR", //sidebar block delimiter "\n****"
+L_BOUNDARY: "L_BOUNDARY",
 }
 
 // Stringer implementation
