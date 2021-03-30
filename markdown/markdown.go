@@ -238,7 +238,7 @@ var checkedRE = regexp.MustCompile(`^\[\*\]`)
 //var boldRE = regexp.MustCompile(`([^\*]|^)\B\*\b|\b\*\B([^\*]|$)`)
 var boldRE = regexp.MustCompile(`(\s|^)\*([^\s\*])(.+?)([^\s\*])\*(\s|$)`)
 var sharpSpaceRE = regexp.MustCompile(`#(\s)`) // "# text" patterns. Need to escape sharp symbol.
-var hardBreakRE = regexp.MustCompile(`\s\+$`)
+var hardBreakRE = regexp.MustCompile(`\s\+\s*$`)
 var smallTextRE = regexp.MustCompile(`\[small]#(.*?)#`)
 var sharpTextRE = regexp.MustCompile(`(#(?:[^\s[:punct:]]|_)+)`) // "#name_id some text"-like patterns outside of backticked spans.
 
