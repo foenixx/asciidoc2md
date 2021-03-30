@@ -399,7 +399,32 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 		case *ast.ExampleBlock:
 			c.WriteExampleBlock(b.(*ast.ExampleBlock))
 		case *ast.SyntaxBlock:
-			c.WriteSyntaxBlock(b.(*ast.SyntaxBlock))
+			sb := b.(*ast.SyntaxBlock)
+			hasAnn := c.hasAnnotations(sb)
+			c.WriteSyntaxBlock(sb)
+			if hasAnn {
+				var cl *ast.List
+				var nb ast.Block
+				var ok bool
+				var j int
+				//let's find connected list of annotations
+				for j, nb = range p.Blocks[i+1:] {
+					cl, ok = nb.(*ast.List)
+					if ok {
+						break
+					}
+				}
+				if ok {
+					c.WriteList(cl)
+					if j == 0 {
+						// list of annotations without prepending text
+						// writing prepending text
+						c.WriteParagraph(ast.NewParagraphFromStr("\n_Выноски:_"), true, c.writer)
+					}
+				} else {
+					c.log.Error(context.Background(), "cannot find connected list of annotations", slog.F("syntax block", sb.StringWithIndent("")))
+				}
+			}
 		case *ast.Bookmark:
 			c.WriteString(fmt.Sprintf(`<a id="%v"></a>`, b.(*ast.Bookmark).Literal))
 
@@ -432,18 +457,34 @@ func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
 	w.Write([]byte(fmt.Sprintf("[%s](%s)", fixText(caption), l.Url)))
 }
 
+var codeAnnRE = regexp.MustCompile(`<\.>`)
+
+func (c *Converter)	hasAnnotations(sb *ast.SyntaxBlock) bool {
+	return codeAnnRE.MatchString(sb.Literal)
+}
+
+func (c *Converter) fixAnnotations(sb *ast.SyntaxBlock) bool {
+	var i int
+	sb.Literal = codeAnnRE.ReplaceAllStringFunc(sb.Literal, func(s string) string {
+		i++
+		return fmt.Sprintf(`/* (%v) */`, i)
+	})
+	// return true if there were some annotations in the code
+	return i > 0
+}
+
 func (c *Converter) WriteSyntaxBlock(sb *ast.SyntaxBlock) {
 	var str string
+	//correct annotations tags
+	hasAnn := c.fixAnnotations(sb)
+
 	if sb.Literal[len(sb.Literal)-1:] == "\n" {
 		//trim last newline
 		str = sb.Literal[:len(sb.Literal)-1]
 	}
-	if len(str)==0 {
-		c.log.Error(context.Background(), "fuck!!", slog.F("sb", sb))
-	}
+
 	if str[0] == '\n' {
 		//trim first newline
-		//c.log.Error(context.Background(), "!!! fuck!!!!")
 		str = str[1:]
 	}
 
@@ -457,5 +498,10 @@ func (c *Converter) WriteSyntaxBlock(sb *ast.SyntaxBlock) {
 		return
 	}
 	str = strings.ReplaceAll(str,"\n", "\n" + c.curIndent + "   ")
-	c.WriteString(fmt.Sprintf("``` %s\n%s   %s\n%s```\n", sb.Lang, c.curIndent, str, c.curIndent))
+	lang := sb.Lang
+	if hasAnn {
+		// "{ .js .annotate }"
+		lang = fmt.Sprintf(`{ .%s .annotate }`, sb.Lang)
+	}
+	c.WriteString(fmt.Sprintf("``` %s\n%s   %s\n%s```\n", lang, c.curIndent, str, c.curIndent))
 }

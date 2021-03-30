@@ -368,6 +368,8 @@ Returns found token and count of consumed bytes.
 */
 func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 	switch {
+	case strings.HasPrefix(w, "<.> "):
+		return &token.Token{Type: token.AL_MARK, Line: l.line, Literal: "<.>"}, 4
 	case strings.HasPrefix(w, "include::"):
 		return &token.Token{Type: token.INCLUDE, Line: l.line, Literal: w}, len(w)
 	case strings.HasPrefix(w, "|==="):  //table

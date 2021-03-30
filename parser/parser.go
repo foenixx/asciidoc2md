@@ -215,7 +215,7 @@ func (p *Parser) isDoubleNewline() bool {
 }
 
 func (p *Parser) isListMarker() bool {
-	return p.tok.Type == token.NL_MARK || p.tok.Type == token.L_MARK || p.tok.Type == token.DEFL_MARK
+	return p.tok.Type == token.NL_MARK || p.tok.Type == token.L_MARK || p.tok.Type == token.DEFL_MARK || p.tok.Type == token.AL_MARK
 }
 
 func (p *Parser) isColumn() bool {
@@ -622,8 +622,8 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 		//store list marker
 		list.Marker = p.tok.Literal
 	}
-	if strings.HasPrefix(list.Marker, ".") {
-		//numbered list
+	if strings.HasPrefix(list.Marker, ".") || list.Marker == "<.>" {
+		//numbered list or code annotations list
 		list.Numbered = true
 	}
 	list.Parent = parent

@@ -353,6 +353,15 @@ text 2`,
 		},
 
 	},
+	{
+		name: "code annotations",
+		input: `<.> text1
+<.> text2`,
+		expected: []lt{
+			{token.AL_MARK, "<.>"},{token.STR, "text1"}, nl,
+			{token.AL_MARK, "<.>"},{token.STR, "text2"}, eof,
+		},
+	},
 
 }
 

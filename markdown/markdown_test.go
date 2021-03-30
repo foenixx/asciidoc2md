@@ -96,7 +96,7 @@ func TestEscapeHtml(t *testing.T) {
 
 func Test1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
-	testAFile(t, "../test.adoc", "../docs/test.md", logger)
+	testAFile(t, "../test.adoc", "../mkdocs_test/docs/index.md", logger)
 }
 
 func TestConverter(t *testing.T) {

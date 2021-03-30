@@ -321,6 +321,38 @@ document:
   paragraph:
     text: text 1`,
 	},
+	{
+		name: "code annotations",
+		input: `
+<.> annotation 1
++
+* nested list 1
+* nested list 2
+<.> annotation 2
+`,
+	expected: `
+document:
+  list begin: (0/false/<.>)
+  item:
+    container block:
+      paragraph:
+        text: annotation 1
+      list begin: (1/false/*)
+      item:
+        container block:
+          paragraph:
+            text: nested list 1
+      item:
+        container block:
+          paragraph:
+            text: nested list 2
+      list end
+  item:
+    container block:
+      paragraph:
+        text: annotation 2
+  list end`,
+	},
 }
 
 func testACase(t *testing.T, tc *parserTestCase, log slog.Logger) {
