@@ -176,10 +176,13 @@ $(artifacts_dir):
 	mkdir $@
 
 apply_adoc_fixes:
-	# replace invalid list markers "•  list item1"
+	# fix invalid list markers "•  list item1"
 	sed -i -E "s/^•\s+/\* /" $(workflow.src)
-    # replace invalid link "<<аналогично <<PlholderF, плейсхолдеру {f:...}>>"
+    # fix invalid link "<<аналогично <<PlholderF, плейсхолдеру {f:...}>>"
 	sed -i -E "s/<<аналогично <<PlholderF/аналогично <<PlholderF/" $(admin.src)
-
+	# fix invalid asciidoc syntax in RoutingGuide.adoc:
+	# * `AddTaskHistoryRecordAsync(
+	#            Guid? taskHistoryGroup, ...
+	sed -i -E '/`AddTaskHistoryRecordAsync\(\s?$$/bx; b ; :x ; /null\)`/by ; N; bx ; :y ; s/\s{2,}/ /g ; s/\r?\n//g ' $(dir $(admin.src))RoutingGuide.adoc
 
 
