@@ -175,9 +175,11 @@ asciidoc2md_build:
 $(artifacts_dir):
 	mkdir $@
 
-apply_adoc_patches:
+apply_adoc_fixes:
 	# replace invalid list markers "•  list item1"
 	sed -i -E "s/^•\s+/\* /" $(workflow.src)
+    # replace invalid link "<<аналогично <<PlholderF, плейсхолдеру {f:...}>>"
+	sed -i -E "s/<<аналогично <<PlholderF/аналогично <<PlholderF/" $(admin.src)
 
 
 

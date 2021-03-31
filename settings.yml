@@ -13,7 +13,13 @@ url_rewrites:
   # these rules are applied first and rewrite complete url with regexp and replace
   - '@html#_Установка_и_конфигурирование_сервера_приложений_и_веб_сервисов_системы': 'html#WebServicesConfig'
   - '@Настройка_клиентского_рабочего_места': 'настройка-клиентского-рабочего-места'
+  - '@_настройка-клиентского-рабочего-места': 'настройка-клиентского-рабочего-места'
+  - '@_выгрузка_данных_из_представления': 'выгрузка-данных-из-представления'
+  - '@_Создание_отчета_с_помощью_связанных_представлений': 'создание-отчета-с-помощью-связанных-представлений'
   - '@^serverSettingCard$': 'AdministratorGuide.adoc#serverSettingCard'
+  - '@_routing-examples': 'routing-examples'
+  - '@Tessa\. Руководство администратора': 'AdministratorGuide.adoc'
+  - '@AdministratorGuide\.html#sample12': 'AdministratorGuide.html#sample2'
   # these rules rewrite only document link, leaving aьфлу ncor part (#...) as is.
   - WorkflowGuide: WorkflowGuide.adoc
   - WebProgrammersGuide: WebProgrammersGuide.adoc
