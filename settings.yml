@@ -10,6 +10,11 @@ cross_links:
   WebProgrammersGuide.adoc: web_dev/
   WorkflowGuide.adoc: workflow/
 url_rewrites:
+  # these rules are applied first and rewrite complete url with regexp and replace
+  - '@html#_Установка_и_конфигурирование_сервера_приложений_и_веб_сервисов_системы': 'html#WebServicesConfig'
+  - '@Настройка_клиентского_рабочего_места': 'настройка-клиентского-рабочего-места'
+  - '@^serverSettingCard$': 'AdministratorGuide.adoc#serverSettingCard'
+  # these rules rewrite only document link, leaving aьфлу ncor part (#...) as is.
   - WorkflowGuide: WorkflowGuide.adoc
   - WebProgrammersGuide: WebProgrammersGuide.adoc
   - WebClientLimitations: WebClientLimitations.adoc

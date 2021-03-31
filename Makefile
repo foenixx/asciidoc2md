@@ -18,7 +18,7 @@ endif
 target_names=\
 	user\
 	admin\
-	install\
+	inst\
 	linux_inst\
 	web_limits\
 	beg\
@@ -51,8 +51,8 @@ user.no_images=
 user.images_dir=
 admin.src=$(src_dir)/AdministratorGuide/AdministratorGuide.adoc
 admin.dest=$(dest_dir)/admin/admin.d
-install.src=$(src_dir)/InstallationGuide/InstallationGuide.adoc
-install.dest=$(dest_dir)/install/install.d
+inst.src=$(src_dir)/InstallationGuide/InstallationGuide.adoc
+inst.dest=$(dest_dir)/install/install.d
 linux_inst.src=$(src_dir)/LinuxInstallationGuide/LinuxInstallationGuide.adoc
 linux_inst.dest=$(dest_dir)/linux_inst/linux_inst.d
 web_limits.src=$(src_dir)/WebClientLimitations/WebClientLimitations.adoc
@@ -121,7 +121,8 @@ endif
 
  .PHONY: $(1).clean
  $(1).clean:
-	rm $(target_dest_dir)/*.d $(target_dest_dir)/*.md
+	-@rm $(target_dest_dir)/*.d $(target_dest_dir)/*.md
+	-@rm $(artifacts_dir)/$(target_idmap_file)
 
 endef
 

@@ -16,6 +16,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -175,7 +176,25 @@ func (fs *FileSplitter) findFirstHeader() *ast.Header {
 	return hdr
 }
 
-func (fs *FileSplitter)	findRewriteRule(url string) string {
+
+func (fs *FileSplitter) applyRewriteRulesRE(url string) string {
+	for _, elem := range fs.conf.UrlRewrites {
+		for k, r := range elem {
+			if k[0] == '@' {
+				//fs.log.Warn(context.Background(), fmt.Sprintf("re: %q, replace: %q", k[1:], r))
+				re, err := regexp.Compile(k[1:])
+				if err != nil {
+					fs.log.Error(context.Background(), "invalid regexp", slog.F("re", k[1:]))
+					return err.Error()
+				}
+				url = re.ReplaceAllString(url, r)
+			}
+		}
+	}
+	return url
+}
+
+func (fs *FileSplitter) findRewriteDocRule(url string) string {
 	for _, elem := range fs.conf.UrlRewrites {
 		for k, r := range elem {
 			if strings.Contains(url, k) {
@@ -186,67 +205,71 @@ func (fs *FileSplitter)	findRewriteRule(url string) string {
 	return ""
 }
 
-func (fs *FileSplitter) urlRewrite(url *ast.Link, root *ast.Document) {
+func (fs *FileSplitter) linkRewrite(link *ast.Link, root *ast.Document) {
 	ctx := context.Background()
 	var idRef, adocRef string
 	var entry *IdMapEntry
 
-	adocRef = url.Url
-	idx := strings.Index(url.Url, "#")
+	link.Url = fs.applyRewriteRulesRE(link.Url)
+
+	adocRef = link.Url
+	idx := strings.Index(link.Url, "#")
 	if idx != -1 {
-		adocRef = url.Url[:idx]
-		idRef = url.Url[idx + 1:]
+		adocRef = link.Url[:idx]
+		idRef = link.Url[idx + 1:]
 	}
 	switch {
-	case idx == -1 && strings.HasSuffix(url.Url, ".adoc"):
+	case idx == -1 && strings.HasSuffix(link.Url, ".adoc"):
 		//no #, link to the document ("file.adoc")
-		adocRef = url.Url
+		adocRef = link.Url
 		idRef = ""
-	case idx == -1 && url.Internal:
+	case idx == -1 && link.Internal:
 		//no #, internal link ("apps-publish")
 		adocRef = fs.doc.Name
-		idRef = url.Url
-	case adocRef == "" && url.Internal:
+		idRef = link.Url
+	case adocRef == "" && link.Internal:
 		//internal link with # ("#apps-publish")
 		adocRef = fs.doc.Name
-	case url.Internal:
+	case link.Internal:
 		// probably relative file name "../docs/admin.adoc"
 		// replace backslashes to slashes for compatibility
 		// path package works with slash-separated paths
 		_, adocRef = path.Split(strings.ReplaceAll(adocRef, `\`, `/`))
 	}
 
-	rule := fs.findRewriteRule(adocRef)
+	rule := fs.findRewriteDocRule(adocRef)
 	if rule != "" {
 		fs.log.Debug(ctx, "found rewrite rule", slog.F(adocRef, rule))
 		adocRef = rule
 	}
 
-	if !url.Internal && rule == "" {
+	if !link.Internal && rule == "" {
 		// external link without rewrite rule
-		fs.log.Debug(ctx, "external link without rewrite rule", slog.F("link", url))
+		fs.log.Debug(ctx, "external link without rewrite rule", slog.F("link", link))
 		return
 	}
+
 
 	entry = fs.findIdMap(adocRef, idRef)
 	if entry == nil {
 		// let's try fallbacks if any
-		fb := fs.conf.IdMapFallbacks[adocRef]
-		if entry = fs.findIdMap(fb, idRef); entry != nil {
-			adocRef = fb
+		if fb := fs.conf.IdMapFallbacks[adocRef]; fb != "" {
+			if entry = fs.findIdMap(fb, idRef); entry != nil {
+				adocRef = fb
+			}
 		}
 	}
 
-	old := url.Url
+	old := link.Url
 	if entry != nil {
-		url.Url = fmt.Sprintf("%v#%v", path.Join(fs.getDocPath(adocRef), entry.FileName), idRef)
-		if url.Text == "" {
-			url.Text = entry.Caption
+		link.Url = fmt.Sprintf("%v#%v", path.Join(fs.getDocPath(adocRef), entry.FileName), idRef)
+		if link.Text == "" {
+			link.Text = entry.Caption
 		}
-		fs.log.Debug(ctx, "successfully rewrote url", slog.F("new", url.Url), slog.F("old", old))
+		fs.log.Debug(ctx, "successfully rewrote link", slog.F("new", link.Url), slog.F("old", old))
 	} else {
-		fs.log.Error(ctx, "cannot rewrite url: idmap is not found", slog.F("url", url), slog.F("doc", root.Name))
-		//url.Url = fmt.Sprintf("%v#%v", adocRef, idRef)
+		fs.log.Error(ctx, "cannot rewrite link: idmap is not found", slog.F("link", link), slog.F("doc", root.Name))
+		//link.Url = fmt.Sprintf("%v#%v", adocRef, idRef)
 	}
 }
 
@@ -261,7 +284,7 @@ func (fs *FileSplitter) fixUrls() {
 			switch b.(type) {
 			case *ast.Link:
 				link := b.(*ast.Link)
-				fs.urlRewrite(link, root)
+				fs.linkRewrite(link, root)
 			}
 			return true
 		},
@@ -270,13 +293,14 @@ func (fs *FileSplitter) fixUrls() {
 }
 
 func (fs *FileSplitter) writeIdMap(name string, idMap IdMap) error {
-	f, err := os.Create(name)
+/*	f, err := os.Create(name)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	out, err := yaml.Marshal(idMap)
-	_, err = f.Write(out)
+*/	out, err := yaml.Marshal(idMap)
+//	_, err = f.Write(out)
+	err = ioutil.WriteFile(name, out, 0666)
 	return err
 }
 
@@ -330,7 +354,7 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 				}
 				fs.fileNames = append(fs.fileNames, fs.fileName)
 			}
-			if hd.Id != "" && !skipCurChapter {
+			if !skipCurChapter {
 				fs.appendIdMap(fs.doc.Name, hd.Id, fs.fileName, hd.Text)
 			}
 		case *ast.Bookmark:
@@ -368,15 +392,20 @@ func (fs *FileSplitter) writeNavToFile(navFile string, docFile string, nav []str
 	return err
 }
 
+var permLinkRE = regexp.MustCompile(`[^a-яА-Яa-zA-Z0-9]+`)
+
 func (fs *FileSplitter) appendIdMap(doc string, id string, file string, caption string) {
-	if id == "" {
-		//ignore empty IDs
-		return
-	}
 	if fs.idMaps[fs.doc.Name] == nil {
 		fs.idMaps[fs.doc.Name] = make(IdMap)
 	}
-	fs.idMaps[fs.doc.Name][id] = &IdMapEntry{file, caption}
+	if id != "" {
+		fs.idMaps[fs.doc.Name][id] = &IdMapEntry{file, caption}
+	}
+	if caption != "" {
+		perm := strings.ToLower(caption)
+		perm = permLinkRE.ReplaceAllLiteralString(perm, "-")
+		fs.idMaps[fs.doc.Name][perm] = &IdMapEntry{file, caption}
+	}
 }
 
 func (fs *FileSplitter) findIdMap(doc string, id string) *IdMapEntry {

@@ -451,7 +451,7 @@ func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
 	caption := l.Text
 	if caption == "" {
 		//shouldn't happen
-		c.log.Warn(context.Background(), "empty link caption", slog.F("link", l))
+		c.log.Debug(context.Background(), "empty link caption", slog.F("link", l))
 		caption = l.Url
 	}
 	w.Write([]byte(fmt.Sprintf("[%s](%s)", fixText(caption), l.Url)))
@@ -490,7 +490,8 @@ func (c *Converter) WriteSyntaxBlock(sb *ast.SyntaxBlock) {
 
 	if sb.InlineHighlight {
 		//there are `pass:quotes[#some_text#]` highlighting
-		str = strings.ReplaceAll(str, `pass:quotes[#`, `<span style="background-color: lightyellow">`)
+		//str = strings.ReplaceAll(str, `pass:quotes[#`, `<span style="background-color: lightyellow">`)
+		str = strings.ReplaceAll(str, `pass:quotes[#`, `<span class="tessa-code-accent">`)
 		str = strings.ReplaceAll(str, `#]`, `</span>`)
 		c.WriteString(fmt.Sprintf(`<pre><code lang="%s">`, sb.Lang))
 		c.WriteString(str)
