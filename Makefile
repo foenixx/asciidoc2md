@@ -174,7 +174,9 @@ asciidoc2md_build:
 $(artifacts_dir):
 	mkdir $@
 
-
+apply_adoc_patches:
+	# replace invalid list markers "•  list item1"
+	sed -i -E "s/^•\s+/\* /" $(workflow.src)
 
 
 

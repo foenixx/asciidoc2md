@@ -1,4 +1,4 @@
-crosslinks:
+cross_links:
   InstallationGuide.adoc: install/
   UserGuide.adoc: user/
   AdministratorGuide.adoc: admin/
@@ -9,7 +9,7 @@ crosslinks:
   WebClientLimitations.adoc: web_limits/
   WebProgrammersGuide.adoc: web_dev/
   WorkflowGuide.adoc: workflow/
-urlrewrites:
+url_rewrites:
   - WorkflowGuide: WorkflowGuide.adoc
   - WebProgrammersGuide: WebProgrammersGuide.adoc
   - WebClientLimitations: WebClientLimitations.adoc
@@ -53,3 +53,6 @@ headers:
   ProgrammersGuide.adoc:
     # do not create a .md file from this chapter
     Методики разработки в Tessa: <skip chapter>
+idmap_fallbacks:
+  # if id not found in the ProgrammersGuide.adoc idmap, then try to find it in the BestPractices.adoc idmap.
+  ProgrammersGuide.adoc: BestPractices.adoc

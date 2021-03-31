@@ -188,38 +188,38 @@ func (fs *FileSplitter)	findRewriteRule(url string) string {
 
 func (fs *FileSplitter) urlRewrite(url *ast.Link, root *ast.Document) {
 	ctx := context.Background()
-	var ref, uri string
+	var idRef, adocRef string
 	var entry *IdMapEntry
 
-	uri = url.Url
+	adocRef = url.Url
 	idx := strings.Index(url.Url, "#")
 	if idx != -1 {
-		uri = url.Url[:idx]
-		ref = url.Url[idx + 1:]
+		adocRef = url.Url[:idx]
+		idRef = url.Url[idx + 1:]
 	}
 	switch {
 	case idx == -1 && strings.HasSuffix(url.Url, ".adoc"):
 		//no #, link to the document ("file.adoc")
-		uri = url.Url
-		ref = ""
+		adocRef = url.Url
+		idRef = ""
 	case idx == -1 && url.Internal:
 		//no #, internal link ("apps-publish")
-		uri = fs.doc.Name
-		ref = url.Url
-	case uri == "" && url.Internal:
+		adocRef = fs.doc.Name
+		idRef = url.Url
+	case adocRef == "" && url.Internal:
 		//internal link with # ("#apps-publish")
-		uri = fs.doc.Name
+		adocRef = fs.doc.Name
 	case url.Internal:
 		// probably relative file name "../docs/admin.adoc"
 		// replace backslashes to slashes for compatibility
 		// path package works with slash-separated paths
-		_, uri = path.Split(strings.ReplaceAll(uri, `\`, `/`))
+		_, adocRef = path.Split(strings.ReplaceAll(adocRef, `\`, `/`))
 	}
 
-	rule := fs.findRewriteRule(uri)
+	rule := fs.findRewriteRule(adocRef)
 	if rule != "" {
-		fs.log.Debug(ctx, "found rewrite rule", slog.F(uri, rule))
-		uri = rule
+		fs.log.Debug(ctx, "found rewrite rule", slog.F(adocRef, rule))
+		adocRef = rule
 	}
 
 	if !url.Internal && rule == "" {
@@ -228,23 +228,25 @@ func (fs *FileSplitter) urlRewrite(url *ast.Link, root *ast.Document) {
 		return
 	}
 
-	entry = fs.findIdMap(uri, ref)
+	entry = fs.findIdMap(adocRef, idRef)
+	if entry == nil {
+		// let's try fallbacks if any
+		fb := fs.conf.IdMapFallbacks[adocRef]
+		if entry = fs.findIdMap(fb, idRef); entry != nil {
+			adocRef = fb
+		}
+	}
 
-/*	if entry == nil && rule == "" {
-		//no rewrite rule && no file mapping
-		fs.log.Error(ctx, "cannot rewrite url: idmap is not found", slog.F("url", url), slog.F("doc", root.Name))
-		return
-	}*/
 	old := url.Url
 	if entry != nil {
-		url.Url = fmt.Sprintf("%v#%v", path.Join(fs.getDocPath(uri), entry.FileName), ref)
+		url.Url = fmt.Sprintf("%v#%v", path.Join(fs.getDocPath(adocRef), entry.FileName), idRef)
 		if url.Text == "" {
 			url.Text = entry.Caption
 		}
 		fs.log.Debug(ctx, "successfully rewrote url", slog.F("new", url.Url), slog.F("old", old))
 	} else {
 		fs.log.Error(ctx, "cannot rewrite url: idmap is not found", slog.F("url", url), slog.F("doc", root.Name))
-		//url.Url = fmt.Sprintf("%v#%v", uri, ref)
+		//url.Url = fmt.Sprintf("%v#%v", adocRef, idRef)
 	}
 }
 
