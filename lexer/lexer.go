@@ -189,6 +189,9 @@ func (l *Lexer) NextToken() *token.Token {
 func (l *Lexer) next() *token.Token {
 
 	switch  {
+	case l.ch == 0xFEFF && l.position == 0:
+		//BOM, skipping it
+		l.readRune()
 	case l.ch == '<' && l.peekRune() == '<':
 		return l.setToken(l.readInternalLink())
 	case l.ch == '.' && l.prevToken.Type == token.NEWLINE && !utils.RuneIs(l.peekRune(), '.','*',' ','\t'):

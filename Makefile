@@ -25,7 +25,8 @@ target_names=\
 	dev\
 	kb\
 	web_dev\
-	workflow
+	workflow\
+	rn
 
 artifacts_dir = idmaps
 config_file = settings.yml
@@ -72,6 +73,9 @@ web_dev.src=$(src_dir)/WebProgrammersGuide/WebProgrammersGuide.adoc
 web_dev.dest=$(dest_dir)/web_dev/web_dev.d
 workflow.src=$(src_dir)/WorkflowGuide/WorkflowGuide.adoc
 workflow.dest=$(dest_dir)/workflow/workflow.d
+rn.src=$(src_dir)/ReleaseNotes/ReleaseNotes.adoc
+rn.dest=$(dest_dir)/rn/rn.d
+
 
 .PHONY: dest_reinit build all clean wipe_dest wipe_dest_proxy all_idmaps_proxy asciidoc2md_build debug
 # For every input target name it defines all required rules
@@ -88,6 +92,7 @@ define adoc_rule =
  $(eval target_idmap_file=$(notdir $(target_src).idmap))
  $(eval target_dest_dir=$(dir $(target_dest)))
  .PHONY: $(1)
+ src_files_all+=$(target_src)
  $(1): $(target_dest)
  $(target_dest): $(target_src) $(artifacts_dir)/$(target_idmap_file) | $(target_dest_dir)
  $(target_dest): slug=$(1)
@@ -184,5 +189,12 @@ apply_adoc_fixes:
 	# * `AddTaskHistoryRecordAsync(
 	#            Guid? taskHistoryGroup, ...
 	sed -i -E '/`AddTaskHistoryRecordAsync\(\s?$$/bx; b ; :x ; /null\)`/by ; N; bx ; :y ; s/\s{2,}/ /g ; s/\r?\n//g ' $(dir $(admin.src))RoutingGuide.adoc
+	# Jinja2 template engine (enabled by using "macros" plugin treats `{#text }` as invalid comment tags and fails.
+	# Replacing `{#` with '{\u2060#' fixes the problem. \u2060 is a "word joiner" symbol (non breaking and zero width).
+    # Its representation in hex format is 0xe281a0 (echo -ne '\u2060' | hexdump -C).
+	sed -E -i 's/\{#/{\xe2\x81\xa0#/g' $(admin.src)
+	sed -i -E -e 's/<https:\/\/www\.mytessa\.ru>/https:\/\/www.mytessa.ru/'\
+ 		-e 's/\(c\) Syntellect/\&copy\; Syntellect/i'\
+ 		-e 's/vSyntellect TESSA \{version\}/Syntellect TESSA {{ tessa.version }}/' $(src_files_all)
 
 

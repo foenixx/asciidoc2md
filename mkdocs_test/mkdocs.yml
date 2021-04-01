@@ -2,6 +2,9 @@ site_name: Simple project for debugging *.md pages
 theme:
   name: material
   language: ru
+plugins:
+  - search
+  - macros
 markdown_extensions:
   - pymdownx.highlight
   - pymdownx.superfences

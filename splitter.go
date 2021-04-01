@@ -232,7 +232,7 @@ func (fs *FileSplitter) linkRewrite(link *ast.Link, root *ast.Document) {
 		adocRef = fs.doc.Name
 	case link.Internal:
 		// probably relative file name "../docs/admin.adoc"
-		// replace backslashes to slashes for compatibility
+		// replace backslashes with slashes for compatibility
 		// path package works with slash-separated paths
 		_, adocRef = path.Split(strings.ReplaceAll(adocRef, `\`, `/`))
 	}

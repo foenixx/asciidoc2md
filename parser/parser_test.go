@@ -353,6 +353,14 @@ document:
         text: annotation 2
   list end`,
 	},
+	{
+		name: "headers 2",
+		input: `
+= Header 1
+Text after 1
+`,
+expected: ``,
+	},
 }
 
 func testACase(t *testing.T, tc *parserTestCase, log slog.Logger) {
