@@ -354,7 +354,7 @@ type HorLine struct {
 }
 
 func (i *HorLine) StringWithIndent(indent string) string {
-	return fmt.Sprintf("\n%shor line")
+	return fmt.Sprintf("\nhor line")
 }
 
 func (i *HorLine) String() string {

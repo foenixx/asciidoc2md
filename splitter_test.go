@@ -40,12 +40,16 @@ func TestSplitter_FindFirstHeader(t *testing.T) {
 		return
 	}
 
-	splitter := NewFileSplitter(doc, "slug", nil, "", 2, logger)
+	splitter := NewFileSplitter(doc, "slug", testConf(), "", 2, logger)
 	h := splitter.findFirstHeader()
 	if !assert.NotNil(t, h) {
 		return
 	}
 	assert.Equal(t, "Header2", h.Text)
+}
+
+func testConf() *settings.Config {
+	return &settings.Config{Headers: map[string]settings.Headers2FileMap{}}
 }
 
 func TestSplitter_NextFile(t *testing.T) {
@@ -104,7 +108,9 @@ func TestSplitter_WriteMarkdown(t *testing.T) {
 
 func TestSplitter(t *testing.T) {
 	ctx := context.Background()
-	//headerMap := map[string]string{ "Header2": "part2.md"}
+	conf := testConf()
+	conf.Headers["gotest.adoc"] = settings.Headers2FileMap{}
+	conf.Headers["gotest.adoc"]["Header2"] = "part2.md"
 
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
 	logger.Info(ctx, "splitter test")
@@ -114,9 +120,10 @@ func TestSplitter(t *testing.T) {
 	if !assert.NoError(t, err) {
 		return
 	}
-	splitter := NewFileSplitter(doc, "slug", &settings.Config{}, ".",2, logger)
+	splitter := NewFileSplitter(doc, "slug", conf, ".",2, logger)
 	splitter.init(true)
-	assert.Equal(t, map[string]string{"id_header3": "part2.md","id_listitem2": "slug_2.md"}, splitter.idMaps)
+	//4 headers + 2 anchors + "gotest.adoc" record
+	assert.Len(t, splitter.idMaps["gotest.adoc"], 7)
 	assert.Equal(t, []string{"part2.md", "slug_2.md"}, splitter.fileNames)
 	//logger.Info(ctx, "filling idMaps", slog.F("idmap", splitter.idMaps))
 }
@@ -139,7 +146,7 @@ func TestSplitter_Debug1(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSplitter_Debug2(t *testing.T) {
+func testSplitterDbg2(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelDebug)
 	abs, _ := filepath.Abs(".")
 	logger.Info(context.Background(), abs)

@@ -60,13 +60,44 @@ headers:
     Установка платформы TESSA в среде управления контейнерами Docker: docker.md
     Заключение: wrapping_up.md
     Возможные проблемы: troubleshooting.md
+  LinuxInstallationGuide.adoc:
+    Системные требования для серверов Linux: requirements.md
+    Установка TESSA: install.md
+    Установка на Ubuntu / Debian / Astra Linux: ubuntu.md
+    Установка на Linux Mint: mint.md
+    Установка на CentOS / Fedora / РЕД ОС: centos.md
+    Установка на Calculate Linux: calculate.md
+    Установка на SUSE Linux Enterprise / OpenSUSE: suse.md
+    Установка на ALT Linux: alt.md
+    Обновление на новую сборку платформы: upgrade.md
+    Миграция базы данных: migration.md
+    Настройка Unix-сокетов и нескольких рабочих процессов: workers.md
+    Часто решаемые задачи: more.md
   UserGuide.adoc:
   AdministratorGuide.adoc:
   ProgrammersGuide.adoc:
+    Расширения: extensions.md
+    Работа с карточками объектов: objects.md
+    Ролевая модель: roles.md
+    Представления: views.md
+    Локализация: localization.md
+    Сервис Chronos: chronos.md
+    Разработка бизнес-процессов: low_level_workflow.md
+    Маршруты: routes.md
+    Автоматические тесты NUnit: unit_tests.md
+    API Слияния объектов: smart_merge.md
     # do not create a .md file from this chapter
     Методики разработки в Tessa: <skip chapter>
   ReleaseNotes.adoc:
     Версия 3.6: 3.6.md
+    Патч 3.5.0.8 (13.04.2021): 3.5.0.8.md
+    Патч 3.5.0.7 (13.03.2021): 3.5.0.7.md
+    Патч 3.5.0.6 (13.01.2021): 3.5.0.6.md
+    Патч 3.5.0.5 (26.12.2020): 3.5.0.5.md
+    Патч 3.5.0.4 (29.10.2020): 3.5.0.4.md
+    Патч 3.5.0.3 (27.09.2020): 3.5.0.3.md
+    Патч 3.5.0.2 (24.08.2020): 3.5.0.2.md
+    Патч 3.5.0.1 (08.06.2020): 3.5.0.1.md
     Версия 3.5 (04.06.2020): 3.5.md
     Версия 3.4 (13.11.2019): 3.4.md
     Версия 3.3.1 (16.07.2019): 3.3.1.md

@@ -43,7 +43,7 @@ func (c *Converter) WriteDocument(doc *ast.Document) {
 }
 
 func (c *Converter) WriteList(l *ast.List) {
-	//var output strings.Builder
+	//var exp strings.Builder
 	var m = "* "
 	if l.Numbered {
 		m = "1. "
@@ -61,7 +61,7 @@ func (c *Converter) WriteList(l *ast.List) {
 }
 
 // ConvertComplexTable converts complex table into a list.
-// For example, if input table has 3 columns, then output list would be:
+// For example, if input table has 3 columns, then exp list would be:
 //  * _col1 header:_ (like italic)
 //    col1 text
 //    _col2 header:_
@@ -133,7 +133,7 @@ func (c *Converter)	ConvertComplexTable(t *ast.Table) *ast.List {
 }
 
 func (c *Converter) WriteTable(t *ast.Table) {
-	//var output strings.Builder
+	//var exp strings.Builder
 	//indent := c.curIndent
 
 	if !t.IsSimple() {
@@ -193,15 +193,23 @@ func (c *Converter) WriteBlockTitle(h *ast.BlockTitle, w io.Writer) {
 }
 
 func (c *Converter) WriteHeader(h *ast.Header, w io.Writer) {
+	/*
 	if h.Id != "" {
 		w.Write([]byte(fmt.Sprintf(`<a id="%v"></a>` + "\n", h.Id)))
 	}
+	 */
 	if h.Float {
 		//render float headers as italic text
 		w.Write([]byte("_" + h.Text + "_\n"))
 		return
 	}
-	w.Write([]byte(strings.Repeat("#", h.Level) + " " + h.Text + "\n"))
+	anchor := "\n"
+	if h.Id != "" {
+		anchor = fmt.Sprintf(" { #%s }\n", h.Id)
+	}
+	w.Write([]byte(strings.Repeat("#", h.Level) + " " + h.Text + anchor))
+
+
 }
 
 //WriteAdmonition will work only if "Admonition" markdown extension is enabled.
@@ -230,32 +238,48 @@ func (c *Converter) ConvertParagraph(p *ast.Paragraph, noFormatFix bool) string 
 // that is "ab`cd" is ignored while "ab `cd` ef" is not.
 var backticksRE = regexp.MustCompile(`\B(\x60)[^\x60]*(\x60)\B`)
 // "`*mono and bold text*`"
-var monoboldRE = regexp.MustCompile(`^\x60\*|\*\x60$`)
+var boldWrappedRE = regexp.MustCompile(`^\*(.*)\*$`)
 // "`+++strange formatting+++`"
-var strangeFormatRE = regexp.MustCompile(`^\x60\+{3}|\+{3}\x60$`)
+var passThruMarkRE = regexp.MustCompile(`\+{3}`)
+var passThruRE = regexp.MustCompile(`\+{3}.+?\+{3}`)
 var checkedRE = regexp.MustCompile(`^\[\*\]`)
 // match only single stars "*" pairs at word boundary and ignore single "*" without pair and double stars "**"
 //var boldRE = regexp.MustCompile(`([^\*]|^)\B\*\b|\b\*\B([^\*]|$)`)
-var boldRE = regexp.MustCompile(`(\s|^)\*([^\s\*])(.+?)([^\s\*])\*(\s|$)`)
+var boldRE = regexp.MustCompile(`(\s|[[:punct:]]|^)\*([^\s\*])(.+?)([^\s\*])\*(\s|[[:punct:]]|$)`)
 var sharpSpaceRE = regexp.MustCompile(`#(\s)`) // "# text" patterns. Need to escape sharp symbol.
 var hardBreakRE = regexp.MustCompile(`\s\+\s*$`)
 var smallTextRE = regexp.MustCompile(`\[small]#(.*?)#`)
 var sharpTextRE = regexp.MustCompile(`(#(?:[^\s[:punct:]]|_)+)`) // "#name_id some text"-like patterns outside of backticked spans.
+var mdEscAllRE = regexp.MustCompile(`([\\\x60*_{}[\]\(\)#\+-\.!\|])`) // `<>` signs are excluded since there is specific rule for them
+// Only non-escaped and also we have to check that there is no backtick prepending.
+// This is since we convert "#text" to "`#text`" for better readability, otherwise it gets corrected and
+//   becomes "`\#text`"
+var mdEscTextRE = regexp.MustCompile(`([^\\\x60])([#\|])`)
 
 func fixString(s string, backticked bool) string {
-	// fix "`*monospace and bold*`" since it isn't allowed in markdown
-	// if strings.HasPrefix(s, "`*") && strings.HasSuffix(s, "")
-	s = monoboldRE.ReplaceAllLiteralString(s, "`")
-	s = strangeFormatRE.ReplaceAllLiteralString(s, "`")
+
+	if backticked {
+		// fix "`*monospace and bold*`" since it isn't allowed in markdown
+		s = boldWrappedRE.ReplaceAllString(s, "$1")
+		s = passThruMarkRE.ReplaceAllLiteralString(s, "")
+	}
 	if !backticked {
+		// fix html passthru syntax "+++some * text # here+++"
+		s = passThruRE.ReplaceAllStringFunc(s, func(s1 string) string {
+			// remove triple pluses
+			trimmed := s1[3:len(s1)-3]
+			return mdEscAllRE.ReplaceAllString(trimmed, `\$1`)
+		})
+		// replace "#name" with "`#name`" BEFORE escaping markdown special symbols
+		s = sharpTextRE.ReplaceAllString(s, "`$1`")
+		// escaping all markdown special symbols
+		s = mdEscTextRE.ReplaceAllString(s, `$1\$2`)
 		// fix checked lists "[*]" -> "[x]"
 		s = checkedRE.ReplaceAllLiteralString(s, "[x]")
 		// converting "*" (asciidoc bold) to "**" (markdown bold)
 		// no need to convert asciidoc italic "_" since it's still an italic in markdown
 		s = boldRE.ReplaceAllString(s, "$1**$2$3$4**$5")
-		s = sharpSpaceRE.ReplaceAllString(s, `\#$1`)
-		// replace "#name" with "`#name`"
-		s = sharpTextRE.ReplaceAllString(s, "`$1`")
+		//s = sharpSpaceRE.ReplaceAllString(s, `\#$1`)
 		s = strings.ReplaceAll(s, "->", "→")
 		s = strings.ReplaceAll(s, "<", "&lt;")
 		s = strings.ReplaceAll(s, ">", "&gt;")
@@ -280,8 +304,10 @@ func fixText(s string) string {
 			fixed.WriteString(fixString(s1, false))
 		}
 		if ind[1] != -1 {
-			s2 = s[ind[0]:ind[1]]
+			s2 = s[ind[0]+1:ind[1]-1] //exclude backticks
+			fixed.WriteRune('`')
 			fixed.WriteString(fixString(s2, true))
+			fixed.WriteRune('`')
 			//fmt.Printf("'%s'\n", s2)
 		}
 		beg = ind[1]
@@ -346,7 +372,7 @@ func (c *Converter) WriteString(s string) error {
 }
 
 func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent bool)  {
-	//var output strings.Builder
+	//var exp strings.Builder
 
 	for i, b := range p.Blocks {
 

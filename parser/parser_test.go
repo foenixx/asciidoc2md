@@ -332,8 +332,8 @@ document:
 `,
 	expected: `
 document:
-  list begin: (0/false/<.>)
-  item:
+  list begin: (0/true/<.>)
+  item 1:
     container block:
       paragraph:
         text: annotation 1
@@ -347,7 +347,7 @@ document:
           paragraph:
             text: nested list 2
       list end
-  item:
+  item 2:
     container block:
       paragraph:
         text: annotation 2
@@ -356,10 +356,15 @@ document:
 	{
 		name: "headers 2",
 		input: `
+[[hdr1]]
 = Header 1
 Text after 1
 `,
-expected: ``,
+		expected: `
+document:
+  header: 1, Header 1 [hdr1]
+  paragraph:
+    text: Text after 1`,
 	},
 }
 
@@ -423,40 +428,29 @@ func TestAllCases(t *testing.T) {
 
 var case1 = parserTestCase{
 name: "debug",
-input:
-`
-= Header 1
+input: `
+[IMPORTANT]
+===============================
+Флаг *Полнотекстовый поиск по сообщениям в обсуждениях* может быть не доступен для редактирования, так как при установке TESSA не был установлен необходимый компонент полнотекстового поиска вашей СУБД. Для того чтобы этот флаг был доступен для редактирования, установите этот компонент.
 
-* list 1
-+
---
-text 1
+* Если TESSA установлена на систему Windows, в качестве СУБД MS SQL Server, то у Вас этот компонент должен быть установлен, исходя из https://docs.microsoft.com/en-us/sql/relational-databases/search/get-started-with-full-text-search?view=sql-server-ver15[документации MS SQL Server]
+* Если вы используете PostgreSQL на любой системе, установка дополнительных компонентов не требуется.
+* Если TESSA установлена на Linux и при этом используется MS SQL Server, то по умолчанию пакеты, которые предоставляет Microsoft для https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-overview?view=sql-server-linux-ver15[различных дистрибутивов], не включает в себя этот компонент. Его необходимо установить дополнительно. Руководство по установке для дистрибутивов Linux есть на сайте с https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-setup-full-text-search?view=sql-server-ver15[документацией для MS SQL Server]
 
-** list 11
-+
-text 2
-+
-** list 12
-+
-text 2
-+
-[sql]
-----
-sql
-----
+После установки это компонента заново импортируйте схему.
+===============================
 
---
-
-= Header 2`,
+asfdsadfdsa
+`,
 expected:
 ``,
 }
 
-func TestParser_DebugCase(t *testing.T) {
+func TestParserDbg1(t *testing.T) {
 	logger := slogtest.Make(t, nil)
 	logger.Info(context.Background(), "log message")
 	//case1.input = strings.ReplaceAll(case1.input, "<fence>", "```")
-	case1 := cases[len(cases)-1]
+	//case1 := cases[len(cases)-1]
 	testACase(t, &case1, logger)
 }
 

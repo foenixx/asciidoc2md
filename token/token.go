@@ -101,5 +101,5 @@ func (t TokenType) String() string {
 	if ok {
 		return val
 	}
-	return "(name not found)"
+	return fmt.Sprintf("(name not found: %v)", int(t))
 }

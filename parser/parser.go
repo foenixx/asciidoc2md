@@ -211,7 +211,7 @@ func (p *Parser) parseBlock() (ast.Block, error) {
 }
 
 func (p *Parser) isDoubleNewline() bool {
-	return p.tok.Type == token.NEWLINE && p.prevTok.Type == token.NEWLINE
+	return p.tok.Type == token.NEWLINE && (p.prevTok.Type == token.NEWLINE || p.prevTok.Type == token.INDENT)
 }
 
 func (p *Parser) isListMarker() bool {

@@ -180,6 +180,9 @@ asciidoc2md_build:
 $(artifacts_dir):
 	mkdir $@
 
+test:
+	go test ./...
+
 apply_adoc_fixes:
 	# fix invalid list markers "•  list item1"
 	sed -i -E "s/^•\s+/\* /" $(workflow.src)

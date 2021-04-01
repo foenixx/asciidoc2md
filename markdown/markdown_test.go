@@ -14,13 +14,15 @@ import (
 	"testing"
 )
 
-type convtc struct{
+type convCase struct{
+	name  string
 	input string
-	output string
+	exp   string
 }
 
-var cases = []convtc{
+var cases = []convCase{
 	{
+		name: "complex list item",
 		input: `
 * item0
 * item1
@@ -30,10 +32,28 @@ var cases = []convtc{
 ====
 example text
 ====`,
-		output: `
+		exp: `
 * item0
-* item1`,
-	}}
+
+* item1
+
+  _Example title_
+
+  !!! example
+      example text
+`,
+	},
+	{
+		name:  "header with custom id",
+		input: `
+[[v3.6]]
+== Версия 3.6
+`,
+		exp:
+`## Версия 3.6 { #v3.6 }
+`,
+	},
+}
 
 var input2 = `
 * item0
@@ -41,7 +61,7 @@ var input2 = `
 `
 
 
-func testACase(t *testing.T, tc *convtc, log slog.Logger) {
+func testACase(t *testing.T, tc *convCase, log slog.Logger) {
 	p := parser.New(tc.input, nil, log)
 	doc, err := p.Parse("test.adoc")
 	if !assert.NoError(t, err) {
@@ -50,7 +70,7 @@ func testACase(t *testing.T, tc *convtc, log slog.Logger) {
 	w := strings.Builder{}
 	conv := Converter{imageFolder: "data/images/", log: log}
 	conv.RenderMarkdown(doc, &w)
-	assert.Equal(t, tc.output, w.String())
+	assert.Equal(t, tc.exp, w.String())
 }
 
 func testAFile(t *testing.T, fIn string, fOut string, log slog.Logger) {
@@ -99,13 +119,10 @@ func Test1(t *testing.T) {
 	testAFile(t, "../test.adoc", "../mkdocs_test/docs/index.md", logger)
 }
 
-func TestConverter(t *testing.T) {
+func testConverter(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
-	input :=
-`
-Формат имени базы данных при включённом параметре RandomizeDbName: + 
-<имя базы данных указанное в строке подключения>_<шестнадцатеричное представления первых четырёх чисел постоянного хеш-кода полученного для полного имени объекта содержащего текущий тест>
-`
+	input := "NOTE: В параметре `source` можно также задавать маскированные пути к файлам, например `Types/Cards/Kr*.jtype` импортирует типы карточек (файлы с расширением .jtype), которые начинаются с букв \"Kr\". Маски задаются символами `*` и `?` таким же образом, как и для других команд в командной строке Windows."
+
 	inc := ``
 	p := parser.New(input, func(name string) ([]byte, error) {
 		return []byte(inc), nil
@@ -123,10 +140,18 @@ func TestConverter(t *testing.T) {
 }
 
 func TestFixString(t *testing.T) {
-	assert.Equal(t, "`bc de`", fixString("`*bc de*`", true))
+	assert.Equal(t, "bc de", fixString("*bc de*", true))
 	assert.Equal(t, "[x] abcd", fixString("[*] abcd", false))
 	assert.Equal(t, "some **bold** text and mi**dd**le and *)", fixString("some *bold* text and mi**dd**le and *)", false))
 	assert.Equal(t, "`#abc_id` \\# de", fixString("#abc_id # de", false))
 	assert.Equal(t, `&lt;&gt;`, fixString("<>", false))
 	assert.Equal(t, "**SQL условие** - условие", fixText(`*SQL условие* - условие`))
+	inp := `+++\ ` + "`" + ` * _ { } [ ] ( ) # + - . ! |+++`
+	exp :=  `\\ ` + "\\` " + `\* \_ \{ \} \[ \] \( \) \# \+ \- \. \! \|`
+	assert.Equal(t, exp, fixText(inp))
+	assert.Equal(t, "` some text `", fixText("`+++ some text +++`"))
+	assert.Equal(t, "символами `*` и `?` таким", fixText("символами `*` и `?` таким"))
+	assert.Equal(t, "Через `#view` представление", fixText("Через #view представление"))
+	assert.Equal(t, "оператора `#if`, который ", fixText("оператора `*#if*`, который "))
+	assert.Equal(t, "Маппинг полей (тип объекта **person** / **user**):", fixText("Маппинг полей (тип объекта *person* / *user*):"))
 }

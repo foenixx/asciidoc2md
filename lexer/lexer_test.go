@@ -45,26 +45,20 @@ func TestShifts(t *testing.T) {
 	assert.Equal(t, 'в', l.ch)
 	l.Shift(2) // 'г' takes 2 bytes, 'д' expected
 	assert.Equal(t, 'д', l.ch)
-	l.Shift(-2) // back to 'д'
-	assert.Equal(t, 'д', l.ch)
-	l.Shift(-2*3) // back to 'д'
-	assert.Equal(t, 'в', l.ch)
+	l.Shift(-2) // back to 'г'
+	assert.Equal(t, 'г', l.ch)
+	l.Shift(-2*3) // back to 'а'
+	assert.Equal(t, 'а', l.ch)
 }
 
 func TestShifts2(t *testing.T) {
-	input := `NOTE: Admonition text`
-	l := New(input)
-	l.Shift(6)
-	l.readRune()
-	assert.Equal(t, 'б', l.ch)
-	l.readRune()
-	assert.Equal(t, 'в', l.ch)
-	l.Shift(2) // 'г' takes 2 bytes, 'д' expected
-	assert.Equal(t, 'д', l.ch)
-	l.Shift(-2) // back to 'д'
-	assert.Equal(t, 'д', l.ch)
-	l.Shift(-2*3) // back to 'д'
-	assert.Equal(t, 'в', l.ch)
+	input := "<.> ab\n"
+	lex := New(input)
+	//l := lex.readLine()
+	tok := lex.tryReadToken()
+	assert.Equal(t, &token.Token{token.AL_MARK,"<.>",1}, tok)
+	tok = lex.tryReadToken()
+	assert.Equal(t, &token.Token{token.STR,"ab",1}, tok)
 }
 
 func TestNextToken(t *testing.T) {
@@ -72,17 +66,8 @@ func TestNextToken(t *testing.T) {
 	l := New(input)
 	var tok *token.Token
 	tok = l.NextToken()
- 	assert.Equal(t, token.BOOKMARK, tok.Type)
-	tok = l.NextToken()
-	assert.Equal(t, token.BOOKMARK, tok.Type)
-	tok = l.NextToken()
-	assert.Equal(t, token.BOOKMARK, tok.Type)
-	tok = l.NextToken()
-	assert.Equal(t, token.BOOKMARK, tok.Type)
-	tok = l.NextToken()
-	assert.Equal(t, token.BOOKMARK, tok.Type)
-
-
+ 	assert.Equal(t, token.STR, int(tok.Type))
+	assert.Equal(t, "строка1 ===", tok.Literal)
 }
 
 type (
@@ -428,13 +413,16 @@ var dcase = lexerTestCase {
 func TestDbg(t *testing.T) {
 	input :=
 		`
-В области предпросмотра есть кнопки для управления областью (кнопки доступны только когда в области предпросмотра не открыт файл):
+[IMPORTANT]
+===============================
+Флаг *Полнотекстовый поиск по сообщениям в обсуждениях* может быть не доступен для редактирования, так как при установке TESSA не был установлен необходимый компонент полнотекстового поиска вашей СУБД. Для того чтобы этот флаг был доступен для редактирования, установите этот компонент.
 
-image:image190.png[] - скрыть область предпросмотра файлов. Снова отобразить ее можно будет с помощью контекстного меню в списке файлов;
+* Если TESSA установлена на систему Windows, в качестве СУБД MS SQL Server, то у Вас этот компонент должен быть установлен, исходя из https://docs.microsoft.com/en-us/sql/relational-databases/search/get-started-with-full-text-search?view=sql-server-ver15[документации MS SQL Server]
+* Если вы используете PostgreSQL на любой системе, установка дополнительных компонентов не требуется.
+* Если TESSA установлена на Linux и при этом используется MS SQL Server, то по умолчанию пакеты, которые предоставляет Microsoft для https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-overview?view=sql-server-linux-ver15[различных дистрибутивов], не включает в себя этот компонент. Его необходимо установить дополнительно. Руководство по установке для дистрибутивов Linux есть на сайте с https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-setup-full-text-search?view=sql-server-ver15[документацией для MS SQL Server]
 
-image:image191.png[] - поменять местами область карточки и область предпросмотра файлов;
-
-image:image192.png[] - разделяет в равных долях область карточки и область предпросмотра файлов (актуально, если пользователем была перемещена вертикальная граница области карточки/области предпросмотра).
+После установки это компонента заново импортируйте схему.
+===============================
 `
 	//input := "NOTE: Admonition text"
 
@@ -458,7 +446,7 @@ func TestFile1(t *testing.T) {
 	//testACase(t, &tc, logger)
 }
 
-func TestSomething(t *testing.T) {
+func testMethodDbg(t *testing.T) {
 	var fencedRE = regexp.MustCompile(`^\x60{3}\s*(\S*)\s*$`)
 	input := "d```  "
 	m := fencedRE.FindStringSubmatch(input)

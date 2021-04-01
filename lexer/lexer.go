@@ -94,10 +94,14 @@ func (l *Lexer) forceFinish() {
 //     (l.ch='в')
 //
 func (l *Lexer) Shift(bts int) {
-
+	var rl int
 	l.eof = false
-	l.readPosition += bts - 1
-	l.position = l.readPosition - 1
+	if bts < 0 {
+		rl = utf8.RuneLen(l.ch)
+	}
+	l.readPosition += bts - rl
+
+	l.position += bts - rl
 
 	l.readRune()
 }
@@ -507,6 +511,8 @@ func (l *Lexer) readBookmark() *token.Token {
 
 }
 
+var exBlockRE = regexp.MustCompile(`^={4,}$`)
+
 func (l *Lexer) readHeaderOrExample() *token.Token {
 	from := l.position
 	for l.ch == '=' {
@@ -514,12 +520,12 @@ func (l *Lexer) readHeaderOrExample() *token.Token {
 	}
 	literal := l.input[from:l.position]
 	l.readWhitespace() //skip whitespace before header text
-	if isNewLine(l.ch) {
+	if isNewLine(l.ch) || isEOF(l.ch){
 		//example block, not a header:
 		//  ====
 		//  text
 		//  ====
-		if literal == "====" {
+		if exBlockRE.MatchString(literal) {
 			return &token.Token{Type: token.EX_BLOCK, Line: l.line, Literal: literal}
 		}
 		return &token.Token{Type: token.ILLEGAL, Line: l.line, Literal: literal}
