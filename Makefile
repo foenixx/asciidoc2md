@@ -184,6 +184,8 @@ test:
 	go test ./...
 
 apply_adoc_fixes:
+	#fix invalid link "file://c/....#tadmin"
+	sed -E -i 's/file:\/\/.*.html#tadmin/https:\/\/docs\/AdministratorGuide.adoc#tadmin/' $(inst.src)
 	# fix invalid list markers "•  list item1"
 	sed -i -E "s/^•\s+/\* /" $(workflow.src)
     # fix invalid link "<<аналогично <<PlholderF, плейсхолдеру {f:...}>>"

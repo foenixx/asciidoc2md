@@ -15,6 +15,7 @@ import (
 type GetWriterFunc func(*ast.Header) io.Writer
 
 type Converter struct {
+	strictIndent bool // use 4 spaces as indentation for every nesting level
 	imageFolder string
 	curIndent   string //current indentation level: 2 spaces, 4 spaces, ...
 	log         slog.Logger
@@ -29,7 +30,8 @@ func New(imFolder string, idMap map[string]string, logger slog.Logger, writerFun
 	return &Converter{imageFolder: imFolder,
 		idMap: idMap,
 		log: logger,
-		writerFunc: writerFunc}
+		writerFunc: writerFunc,
+		strictIndent: true}
 }
 
 func (c *Converter) RenderMarkdown(doc *ast.Document, w io.Writer) {
@@ -51,7 +53,11 @@ func (c *Converter) WriteList(l *ast.List) {
 	indent := c.curIndent
 
 	for _, i := range l.Items {
-		c.curIndent = indent + strings.Repeat(" ", len(m))
+		if c.strictIndent {
+			c.curIndent = indent + "    " //4 spaces
+		} else {
+			c.curIndent = indent + strings.Repeat(" ", len(m))
+		}
 		c.WriteString("\n" + indent + m)
 		c.WriteContainerBlock(i, false)
 		//c.log.Debug(context.Background(), str)
@@ -200,14 +206,14 @@ func (c *Converter) WriteHeader(h *ast.Header, w io.Writer) {
 	 */
 	if h.Float {
 		//render float headers as italic text
-		w.Write([]byte("_" + h.Text + "_\n"))
+		w.Write([]byte("_" + fixText(h.Text) + "_\n"))
 		return
 	}
 	anchor := "\n"
 	if h.Id != "" {
 		anchor = fmt.Sprintf(" { #%s }\n", h.Id)
 	}
-	w.Write([]byte(strings.Repeat("#", h.Level) + " " + h.Text + anchor))
+	w.Write([]byte(strings.Repeat("#", h.Level) + " " + fixText(h.Text) + anchor))
 
 
 }
@@ -261,7 +267,11 @@ func fixString(s string, backticked bool) string {
 	if backticked {
 		// fix "`*monospace and bold*`" since it isn't allowed in markdown
 		s = boldWrappedRE.ReplaceAllString(s, "$1")
+		// remove "+++text+++" wrappers
 		s = passThruMarkRE.ReplaceAllLiteralString(s, "")
+		// insert "word joiner" unicode character (https://www.compart.com/en/unicode/U+2060)
+		// in the middle of "{#" to prevent jinja2 from identifying it as incorrent comment tag
+		s = strings.ReplaceAll(s, "{#", "{\u2060#")
 	}
 	if !backticked {
 		// fix html passthru syntax "+++some * text # here+++"

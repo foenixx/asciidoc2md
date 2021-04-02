@@ -21,7 +21,7 @@ url_rewrites:
   - '@_routing-examples': 'routing-examples'
   - '@Tessa\. Руководство администратора': 'AdministratorGuide.adoc'
   - '@AdministratorGuide\.html#sample12': 'AdministratorGuide.html#sample2'
-  # these rules rewrite only document link, leaving aьфлу ncor part (#...) as is.
+  # these rules rewrite only document link, leaving ancor part (#...) as is.
   - WorkflowGuide: WorkflowGuide.adoc
   - WebProgrammersGuide: WebProgrammersGuide.adoc
   - WebClientLimitations: WebClientLimitations.adoc

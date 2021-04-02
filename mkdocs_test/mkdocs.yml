@@ -1,24 +1,58 @@
 site_name: Simple project for debugging *.md pages
+plugins:
+  - macros
+  - search:
+      lang:
+        - en
+        - ru
+extra_css:
+  - css/extra.css
+extra:
+  generator: false
+  tessa:
+    version: 3.6_dev
 theme:
   name: material
   language: ru
-plugins:
-  - search
-  - macros
+  logo: images/icon-square-01.svg
+  features:
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - navigation.tabs
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: light blue
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      accent: blue
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
 markdown_extensions:
-  - toc:
-        permalink: True
-  - pymdownx.highlight
-  - pymdownx.superfences
+  - attr_list
   - pymdownx.tasklist:
       custom_checkbox: true
   - admonition
-  - attr_list
+  - pymdownx.highlight:
+      use_pygments: true
   - pymdownx.details
   - pymdownx.superfences
-  - mdx_truly_sane_lists # https://github.com/mkdocs/mkdocs/issues/545
+  # https://github.com/mkdocs/mkdocs/issues/545
   - smarty
   - pymdownx.caret
   - pymdownx.mark
   - pymdownx.tilde
   - pymdownx.critic
+  - sane_lists
+  - toc:
+      permalink: true
+      slugify: !!python/name:pymdownx.slugs.uslugify

@@ -131,17 +131,18 @@ func TestSplitter(t *testing.T) {
 func TestSplitter_Debug1(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
 
-	inputFile := "docs/rn/ReleaseNotes.adoc"
+	inputFile := "docs/installation/InstallationGuide.adoc"
 	//inputFile := "C:\\SynProjects\\Syntellect\\Tessa\\Docs\\UserGuide\\UserGuide.adoc"
 	//includePath := filepath.Dir(inputFile)
-	outputSlug := "test"
+	outputSlug := "install"
 	//outputPath := "C:\\SynProjects\\Syntellect\\tessa_docs\\docs\\user"
-	outputPath := "docs/rn"
-	dumpFile := "docs/rn/dump.out"
+	outputPath := "mkdocs_test/docs"
+	dumpFile := ""
 	imagePath := "/images"
 
 	config := initConfigCLI("settings.yml", nil)
 	splitter := initSplitter(inputFile, "", outputPath, outputSlug, 2, dumpFile, config, logger)
+
 	err := splitter.RenderMarkdown(imagePath)
 	assert.NoError(t, err)
 }
