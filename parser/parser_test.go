@@ -429,18 +429,8 @@ func TestAllCases(t *testing.T) {
 var case1 = parserTestCase{
 name: "debug",
 input: `
-[IMPORTANT]
-===============================
-Флаг *Полнотекстовый поиск по сообщениям в обсуждениях* может быть не доступен для редактирования, так как при установке TESSA не был установлен необходимый компонент полнотекстового поиска вашей СУБД. Для того чтобы этот флаг был доступен для редактирования, установите этот компонент.
-
-* Если TESSA установлена на систему Windows, в качестве СУБД MS SQL Server, то у Вас этот компонент должен быть установлен, исходя из https://docs.microsoft.com/en-us/sql/relational-databases/search/get-started-with-full-text-search?view=sql-server-ver15[документации MS SQL Server]
-* Если вы используете PostgreSQL на любой системе, установка дополнительных компонентов не требуется.
-* Если TESSA установлена на Linux и при этом используется MS SQL Server, то по умолчанию пакеты, которые предоставляет Microsoft для https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-overview?view=sql-server-linux-ver15[различных дистрибутивов], не включает в себя этот компонент. Его необходимо установить дополнительно. Руководство по установке для дистрибутивов Linux есть на сайте с https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-setup-full-text-search?view=sql-server-ver15[документацией для MS SQL Server]
-
-После установки это компонента заново импортируйте схему.
-===============================
-
-asfdsadfdsa
+[#filesViewControl]
+=== Работа с файлами посредством контрола "Представление"
 `,
 expected:
 ``,

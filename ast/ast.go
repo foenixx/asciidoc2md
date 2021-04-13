@@ -208,7 +208,8 @@ type List struct {
 	Marker string
 	Level int
 	Numbered bool
-	Definition bool
+	Definition bool //definitions list
+	Callouts bool //callouts list
 }
 
 func (l *List) Walk(f WalkerFunc, root *Document) bool {

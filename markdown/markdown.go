@@ -301,6 +301,8 @@ func fixText(s string) string {
 	// asciidoc magic "Section1.Field1\=>Section2.Field2"
 	s = strings.ReplaceAll(s, `\->`, `->`)
 	s = strings.ReplaceAll(s, `\=>`, `=>`)
+	// replace NBSP with ordinary space
+	s = strings.ReplaceAll(s, "\u00a0", " ")
 	// removing "[small]#small text# magic"
 	s = smallTextRE.ReplaceAllString(s, "$1")
 	var fixed = strings.Builder{}
@@ -455,7 +457,8 @@ func (c *Converter) WriteContainerBlock(p *ast.ContainerBlock, firstLineIndent b
 					if j == 0 {
 						// list of annotations without prepending text
 						// writing prepending text
-						c.WriteParagraph(ast.NewParagraphFromStr("\n_Выноски:_"), true, c.writer)
+						c.WriteString("\n" + c.curIndent + "_Выноски:_")
+						//c.WriteParagraph(ast.NewParagraphFromStr("_Выноски:_"), true, c.writer)
 					}
 				} else {
 					c.log.Error(context.Background(), "cannot find connected list of annotations", slog.F("syntax block", sb.StringWithIndent("")))
@@ -482,7 +485,6 @@ func (c *Converter) WriteHorLine(p *ast.HorLine, w io.Writer) {
 	w.Write([]byte("***\n"))
 }
 
-// <<repair-hosting, Возможных проблем>>
 func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
 	caption := l.Text
 	if caption == "" {
@@ -493,15 +495,15 @@ func (c *Converter) WriteLink(l *ast.Link, w io.Writer)  {
 	w.Write([]byte(fmt.Sprintf("[%s](%s)", fixText(caption), l.Url)))
 }
 
-var codeAnnRE = regexp.MustCompile(`<\.>`)
+var calloutRE = regexp.MustCompile(`<(\.|\d+)>`)
 
 func (c *Converter)	hasAnnotations(sb *ast.SyntaxBlock) bool {
-	return codeAnnRE.MatchString(sb.Literal)
+	return calloutRE.MatchString(sb.Literal)
 }
 
 func (c *Converter) fixAnnotations(sb *ast.SyntaxBlock) bool {
 	var i int
-	sb.Literal = codeAnnRE.ReplaceAllStringFunc(sb.Literal, func(s string) string {
+	sb.Literal = calloutRE.ReplaceAllStringFunc(sb.Literal, func(s string) string {
 		i++
 		return fmt.Sprintf(`/* (%v) */`, i)
 	})

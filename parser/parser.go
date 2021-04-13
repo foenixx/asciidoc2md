@@ -215,7 +215,7 @@ func (p *Parser) isDoubleNewline() bool {
 }
 
 func (p *Parser) isListMarker() bool {
-	return p.tok.Type == token.NL_MARK || p.tok.Type == token.L_MARK || p.tok.Type == token.DEFL_MARK || p.tok.Type == token.AL_MARK
+	return p.tok.Type == token.NL_MARK || p.tok.Type == token.L_MARK || p.tok.Type == token.DEFL_MARK || p.tok.Type == token.CALLOUT_MARK
 }
 
 func (p *Parser) isColumn() bool {
@@ -345,12 +345,19 @@ func (p *Parser) parseAdmonition() (*ast.Admonition, error) {
 }
 
 var headerRE = regexp.MustCompile(`\s*=+$`)
-
+var headerOptsID = regexp.MustCompile(`#([a-zA-Z0-9а-яА-Я-_]+)`)
 func (p *Parser) parseHeader(id string, options string) (*ast.Header, error) {
 	var h ast.Header
+	//id could be specified as in "[opt1, #id, opt2]"
+	if id == "" {
+		matches := headerOptsID.FindStringSubmatch(options)
+		if len(matches) == 2 {
+			id = matches[1]
+		}
+	}
 	h.Id = id
 	h.Options = options
-	if h.Options == "float" {
+	if strings.Contains(h.Options,"float") {
 		h.Float = true //not a header, just formatted like a header text
 	}
 	h.Level = len(p.tok.Literal)
@@ -622,10 +629,17 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 		//store list marker
 		list.Marker = p.tok.Literal
 	}
-	if strings.HasPrefix(list.Marker, ".") || list.Marker == "<.>" {
-		//numbered list or code annotations list
+	if strings.HasPrefix(list.Marker, ".") {
+		//numbered list
 		list.Numbered = true
 	}
+	if p.tok.Type == token.CALLOUT_MARK {
+		//code annotations list
+		list.Numbered = true
+		list.Callouts = true
+	}
+
+
 	list.Parent = parent
 	if parent != nil {
 		list.Level = parent.Level + 1
@@ -639,7 +653,9 @@ func (p *Parser) parseList(parent *ast.List) (*ast.List, error) {
 			//end of the list
 			//p.nestedListLevel = 0
 			return &list, nil
-		case p.isListMarker() && (p.tok.Literal == list.Marker || (p.tok.Type == token.DEFL_MARK && list.Definition)):
+		case p.isListMarker() && (p.tok.Literal == list.Marker ||
+				(p.tok.Type == token.DEFL_MARK && list.Definition)) ||
+				(p.tok.Type == token.CALLOUT_MARK && list.Callouts):
 			//current list item
 			var def string
 			if list.Definition {

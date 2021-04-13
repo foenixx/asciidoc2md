@@ -119,9 +119,9 @@ func Test1(t *testing.T) {
 	testAFile(t, "../test.adoc", "../mkdocs_test/docs/index.md", logger)
 }
 
-func testConverter(t *testing.T) {
+func TestDbg(t *testing.T) {
 	logger := slogtest.Make(t, nil).Leveled(slog.LevelInfo)
-	input := "NOTE: В параметре `source` можно также задавать маскированные пути к файлам, например `Types/Cards/Kr*.jtype` импортирует типы карточек (файлы с расширением .jtype), которые начинаются с букв \"Kr\". Маски задаются символами `*` и `?` таким же образом, как и для других команд в командной строке Windows."
+	input := `* *Type* - тип значения колонки. Может быть указано имя колонки из схемы, тип которой будет у колонки, в формате *$[имя таблицы].[имя колонки]* или тип данных в https://docs.microsoft.com/ru-ru/sql/t-sql/data-types/data-types-transact-sql?view=sql-server-2017[терминах MS SQL Server]. Обязательный.`
 
 	inc := ``
 	p := parser.New(input, func(name string) ([]byte, error) {

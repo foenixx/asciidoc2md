@@ -56,7 +56,7 @@ func TestShifts2(t *testing.T) {
 	lex := New(input)
 	//l := lex.readLine()
 	tok := lex.tryReadToken()
-	assert.Equal(t, &token.Token{token.AL_MARK,"<.>",1}, tok)
+	assert.Equal(t, &token.Token{token.CALLOUT_MARK,"<.>",1}, tok)
 	tok = lex.tryReadToken()
 	assert.Equal(t, &token.Token{token.STR,"ab",1}, tok)
 }
@@ -341,10 +341,14 @@ text 2`,
 	{
 		name: "code annotations",
 		input: `<.> text1
-<.> text2`,
+<.> text2
+<3> text3
+<12> text12`,
 		expected: []lt{
-			{token.AL_MARK, "<.>"},{token.STR, "text1"}, nl,
-			{token.AL_MARK, "<.>"},{token.STR, "text2"}, eof,
+			{token.CALLOUT_MARK, "<.>"},{token.STR, "text1"}, nl,
+			{token.CALLOUT_MARK, "<.>"},{token.STR, "text2"}, nl,
+			{token.CALLOUT_MARK, "<3>"},{token.STR, "text3"}, nl,
+			{token.CALLOUT_MARK, "<12>"},{token.STR, "text12"}, eof,
 		},
 	},
 
@@ -413,16 +417,8 @@ var dcase = lexerTestCase {
 func TestDbg(t *testing.T) {
 	input :=
 		`
-[IMPORTANT]
-===============================
-Флаг *Полнотекстовый поиск по сообщениям в обсуждениях* может быть не доступен для редактирования, так как при установке TESSA не был установлен необходимый компонент полнотекстового поиска вашей СУБД. Для того чтобы этот флаг был доступен для редактирования, установите этот компонент.
-
-* Если TESSA установлена на систему Windows, в качестве СУБД MS SQL Server, то у Вас этот компонент должен быть установлен, исходя из https://docs.microsoft.com/en-us/sql/relational-databases/search/get-started-with-full-text-search?view=sql-server-ver15[документации MS SQL Server]
-* Если вы используете PostgreSQL на любой системе, установка дополнительных компонентов не требуется.
-* Если TESSA установлена на Linux и при этом используется MS SQL Server, то по умолчанию пакеты, которые предоставляет Microsoft для https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-overview?view=sql-server-linux-ver15[различных дистрибутивов], не включает в себя этот компонент. Его необходимо установить дополнительно. Руководство по установке для дистрибутивов Linux есть на сайте с https://docs.microsoft.com/en-us/sql/linux/sql-server-linux-setup-full-text-search?view=sql-server-ver15[документацией для MS SQL Server]
-
-После установки это компонента заново импортируйте схему.
-===============================
+<1> sdfds
+<2> sdfds
 `
 	//input := "NOTE: Admonition text"
 

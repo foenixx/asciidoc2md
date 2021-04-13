@@ -369,14 +369,15 @@ func (l *Lexer) lookupInlineKeyword(w string) (*token.Token, int) {
 var admonitionRE = regexp.MustCompile(`^\s*((?:NOTE)|(?:TIP)|(?:IMPORTANT)|(?:WARNING)|(?:CAUTION)):\s(.*)$`)
 var defListRE = regexp.MustCompile(`^(.*)::\s*$`)
 var parConcatRE = regexp.MustCompile(`^\+\s*$`)
+var calloutRE = regexp.MustCompile(`^\s*(<(?:\.|\d+)>)\s`)
 /*
 lookupLineKeyword is used only for starting from newline keywords.
 Returns found token and count of consumed bytes.
 */
 func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 	switch {
-	case strings.HasPrefix(w, "<.> "):
-		return &token.Token{Type: token.AL_MARK, Line: l.line, Literal: "<.>"}, 4
+/*	case strings.HasPrefix(w, "<.> "):
+		return &token.Token{Type: token.CALLOUT_MARK, Line: l.line, Literal: "<.>"}, 4*/
 	case strings.HasPrefix(w, "include::"):
 		return &token.Token{Type: token.INCLUDE, Line: l.line, Literal: w}, len(w)
 	case strings.HasPrefix(w, "|==="):  //table
@@ -422,6 +423,10 @@ func (l *Lexer) lookupLineKeyword(w string) (*token.Token, int) {
 		matches = fencedRE.FindStringSubmatch(w)
 		if len(matches) == 2 {
 			return &token.Token{Type: token.FENCED_BLOCK_DELIM, Line: l.line, Literal: w}, len(w)
+		}
+		matches = calloutRE.FindStringSubmatch(w)
+		if len(matches) == 2 {
+			return &token.Token{Type: token.CALLOUT_MARK, Line: l.line, Literal: matches[1]}, len(matches[0])
 		}
 	}
 	return nil, 0

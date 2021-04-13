@@ -31,11 +31,11 @@ const (
 	INDENT
 	HEADER
 	HOR_LINE
-	L_MARK //not-numbered list marker
-	NL_MARK //numbered list  marker
-	AL_MARK // annotations list marker "<.>"
-	L_BOUNDARY // "--" 	list block boundary
-	DEFL_MARK //definition list marker "text::"
+	L_MARK       //not-numbered list marker
+	NL_MARK      //numbered list  marker
+	CALLOUT_MARK // code callouts marker "<.>", "<1>", "<2>", ...
+	L_BOUNDARY   // "--" 	list block boundary
+	DEFL_MARK    //definition list marker "text::"
 	BLOCK_IMAGE
 	INLINE_IMAGE
 	ADMONITION
@@ -82,17 +82,17 @@ BOOKMARK: "BOOKMARK",   // "[[bookmark_text]]"
 BLOCK_TITLE: "BLOCK_TITLE",
 EX_BLOCK: "EX_BLOCK",    //open example block "===="
 QUOTE_BLOCK: "QUOTE_BLOCK", //quotation block "____"
-TABLE: "TABLE",       //table "|===...."
-COLUMN: "COLUMN",      //column separator "|"
-A_COLUMN: "A_COLUMN",    //column separator "a|"
-URL: "URL",
-LINK_NAME: "LINK_NAME",
-INT_LINK: "INT_LINK", //internal link "<<link,name>>"
-INCLUDE: "INCLUDE",  //include directive "include::RoutingGuide.adoc[leveloffset=+1]"
-COMMENT: "COMMENT",
-SIDEBAR: "SIDEBAR", //sidebar block delimiter "\n****"
-L_BOUNDARY: "L_BOUNDARY",
-AL_MARK: "AL_MARK",
+TABLE:        "TABLE",       //table "|===...."
+COLUMN:       "COLUMN",      //column separator "|"
+A_COLUMN:     "A_COLUMN",    //column separator "a|"
+URL:          "URL",
+LINK_NAME:    "LINK_NAME",
+INT_LINK:     "INT_LINK", //internal link "<<link,name>>"
+INCLUDE:      "INCLUDE",  //include directive "include::RoutingGuide.adoc[leveloffset=+1]"
+COMMENT:      "COMMENT",
+SIDEBAR:      "SIDEBAR", //sidebar block delimiter "\n****"
+L_BOUNDARY:   "L_BOUNDARY",
+CALLOUT_MARK: "CALLOUT_MARK",
 }
 
 // Stringer implementation
