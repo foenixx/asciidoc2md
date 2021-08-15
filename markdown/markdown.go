@@ -324,7 +324,7 @@ func fixText(s string) string {
 		}
 		beg = ind[1]
 	}
-	return hardBreakRE.ReplaceAllString(fixed.String(), `</br>`)
+	return hardBreakRE.ReplaceAllString(fixed.String(), `<br>`)
 }
 
 func (c *Converter) WriteParagraph(p *ast.Paragraph, noFormatFix bool, w io.Writer) {
@@ -536,11 +536,11 @@ func (c *Converter) WriteSyntaxBlock(sb *ast.SyntaxBlock) {
 		c.WriteString("</code></pre>\n")
 		return
 	}
-	str = strings.ReplaceAll(str,"\n", "\n" + c.curIndent + "   ")
+	str = strings.ReplaceAll(str,"\n", "\n" + c.curIndent)
 	lang := sb.Lang
 	if hasAnn {
 		// "{ .js .annotate }"
 		lang = fmt.Sprintf(`{ .%s .annotate }`, sb.Lang)
 	}
-	c.WriteString(fmt.Sprintf("``` %s\n%s   %s\n%s```\n", lang, c.curIndent, str, c.curIndent))
+	c.WriteString(fmt.Sprintf("``` %s\n%s%s\n%s```\n", lang, c.curIndent, str, c.curIndent))
 }

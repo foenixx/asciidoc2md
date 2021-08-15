@@ -1,6 +1,7 @@
 site_name: Simple project for debugging *.md pages
 plugins:
   - macros
+  - awesome-pages
   - search:
       lang:
         - en

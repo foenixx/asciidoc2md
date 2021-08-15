@@ -13,36 +13,34 @@ ifneq ($(findstring debug,$(MAKECMDGOALS)),)
 dbg := '--debug'
 endif
 
-
 # short target names allow us to run "make user" instead of "make some/path/to/UserGuide.d"
 target_names=\
 	user\
 	admin\
 	inst\
-	linux_inst\
+	linux\
 	web_limits\
 	beg\
 	dev\
 	kb\
-	web_dev\
-	workflow\
-	rn
+	web\
+	workflow
 
 artifacts_dir = idmaps
 config_file = settings.yml
-dest_dir = /mnt/c/SynProjects/Syntellect/tessa_docs/docs
+dest_dir = /mnt/c/SynProjects/Syntellect/Tessa/mkdocs/docs
+#dest_dir = /mnt/c/Personal/mkdocs/mkdocs3/docs
 src_dir = /mnt/c/SynProjects/Syntellect/Tessa/Docs
 # Default behaviour is to write navigation info. Could be disabled by setting "target.no_nav" variable.
-write_nav_flag := --write-nav=$(dest_dir)/../mkdocs.yml
+#write_nav_flag := --write-nav=$(dest_dir)/../mkdocs.yml
 # Options for every target.
 # Source file name (.adoc).
 user.src = $(src_dir)/UserGuide/UserGuide.adoc
 # Destination file name (.d). Destination files are synthetic, and intended only for tracking dependencies change,
 #  since we don't know in advance what names the output .md file will have. All output markdown files are
 #  generated in the destination directory nearby .d file.
-user.dest=$(dest_dir)/user/user.d
-# Set this to any non-empty value (1 or true, for example) to disable writing navigation snippet into mkdocs.yml
-user.no_nav=
+user.dest=$(dest_dir)/usr/user/user.d
+user.nav_file=$(dest_dir)/usr/user/.pages
 # Set this to a numeric value to override default --split-level value. Empty value means default value: 2.
 user.split_level=
 # Set this to any non-empty value (1 or true, for example) to skip copying everything from source folder
@@ -51,31 +49,47 @@ user.no_images=
 # Set this to non-empty value to override default image path (./image)
 user.images_dir=
 admin.src=$(src_dir)/AdministratorGuide/AdministratorGuide.adoc
-admin.dest=$(dest_dir)/admin/admin.d
+admin.dest=$(dest_dir)/adm/admin/admin.d
+admin.nav_file=$(dest_dir)/adm/admin/.pages
 inst.src=$(src_dir)/InstallationGuide/InstallationGuide.adoc
-inst.dest=$(dest_dir)/install/install.d
-linux_inst.src=$(src_dir)/LinuxInstallationGuide/LinuxInstallationGuide.adoc
-linux_inst.dest=$(dest_dir)/linux_inst/linux_inst.d
+inst.dest=$(dest_dir)/adm/install/install.d
+inst.nav_file=$(dest_dir)/adm/install/.pages
+linux.src=$(src_dir)/LinuxInstallationGuide/LinuxInstallationGuide.adoc
+linux.dest=$(dest_dir)/adm/linux/linux.d
+linux.nav_file=$(dest_dir)/adm/linux/.pages
 web_limits.src=$(src_dir)/WebClientLimitations/WebClientLimitations.adoc
-web_limits.dest=$(dest_dir)/web_limits/web_limits.d
-web_limits.no_nav=true
+web_limits.dest=$(dest_dir)/adm/web_limits/web_limits.d
 web_limits.split_level=1
 beg.src=$(src_dir)/BeginnersGuide/BeginnersGuide.adoc
-beg.dest=$(dest_dir)/beg/beg.d
+beg.dest=$(dest_dir)/dev/beg/beg.d
+beg.nav_file=$(dest_dir)/dev/beg/.pages
 dev.src=$(src_dir)/ProgrammersGuide/ProgrammersGuide.adoc
-dev.dest=$(dest_dir)/dev/dev.d
+dev.dest=$(dest_dir)/dev/dev/dev.d
+dev.nav_file=$(dest_dir)/dev/dev/.pages
 kb.src=$(src_dir)/ProgrammersGuide/BestPractices.adoc
-kb.dest=$(dest_dir)/dev/kb/kb.d
+kb.dest=$(dest_dir)/dev/dev/kb/kb.d
 kb.split_level=3
 kb.no_images=true
+kb.nav_file=$(dest_dir)/dev/dev/kb/.pages
 kb.images_dir=../images/
-web_dev.src=$(src_dir)/WebProgrammersGuide/WebProgrammersGuide.adoc
-web_dev.dest=$(dest_dir)/web_dev/web_dev.d
+web.src=$(src_dir)/WebProgrammersGuide/WebProgrammersGuide.adoc
+web.dest=$(dest_dir)/dev/web/web.d
+web.nav_file=$(dest_dir)/dev/web/.pages
 workflow.src=$(src_dir)/WorkflowGuide/WorkflowGuide.adoc
-workflow.dest=$(dest_dir)/workflow/workflow.d
-rn.src=$(src_dir)/ReleaseNotes/ReleaseNotes.adoc
-rn.dest=$(dest_dir)/rn/rn.d
+workflow.dest=$(dest_dir)/dev/workflow/workflow.d
+workflow.nav_file=$(dest_dir)/dev/workflow/.pages
+#rn.src=$(src_dir)/ReleaseNotes/ReleaseNotes.adoc
+#rn.dest=$(dest_dir)/rn/rn.d
 
+help:
+	@echo "Source dir: "$(src_dir)
+	@echo "Destination dir: "$(dest_dir)
+	@echo "Short names :"$(target_names)
+	@echo "Available make targets:"
+	@echo "  help: Show this message."
+	@echo "  all: Default target. Build all .idmap files and then convert all asciidoc files to markdown."
+	@echo "  dest_reinit: Wipe destination folder (remove everything except ``index.md``) and copy all images from the source folders."
+	@echo "  apply_adoc_fixes: Apply several hardcoded fixes to the source files."
 
 .PHONY: dest_reinit build all clean wipe_dest wipe_dest_proxy all_idmaps_proxy asciidoc2md_build debug
 # For every input target name it defines all required rules
@@ -101,8 +115,8 @@ ifdef $(1).images_dir
 endif
  $(artifacts_dir)/$(target_idmap_file): $(target_src) asciidoc2md
  $(artifacts_dir)/$(target_idmap_file): slug=$(1)
-ifdef $(1).no_nav
- $(artifacts_dir)/$(target_idmap_file): write_nav_flag=
+ifdef $(1).nav_file
+ $(artifacts_dir)/$(target_idmap_file): write_nav_flag=--write-nav=$($(1).nav_file)
 endif
  idmap_files_all+=$(artifacts_dir)/$(target_idmap_file)
 ifdef $(1).split_level
@@ -115,20 +129,20 @@ endif
 	mkdir -p $$@
 
  .PHONY: $(1).init
- $(1).init: wipe_dest_proxy | $(target_dest_dir)
-	rm -rf 	$(target_dest_dir)
-	mkdir $(target_dest_dir)
+ $(1).init: | $(target_dest_dir)
+	find $(target_dest_dir)/. -mindepth 1 -not \( -name '.pages' -or -path '*kb' \) -exec rm -rf {} +
 ifndef $(1).no_images
-	cp -r $(dir $(target_src))/* $(target_dest_dir)
-	rm $(target_dest_dir)/*.adoc
+	rsync -av $(dir $(target_src)) $(target_dest_dir) --exclude '*.adoc'
 endif
  folder_init_all_targets += $(1).init
 
  .PHONY: $(1).clean
  $(1).clean:
-	-@rm $(target_dest_dir)/*.d $(target_dest_dir)/*.md
+	-@rm $(target_dest_dir)/*.d
+	-@rm $(target_dest_dir)/*.md
 	-@rm $(artifacts_dir)/$(target_idmap_file)
 
+ clean_all_targets += $(1).clean
 endef
 
 #$(info $(call adoc_rule,user))
@@ -145,18 +159,8 @@ endif
 all_idmaps_proxy: $(idmap_files_all)
 #$(info $(idmap_files_all))
 
+all.clean: $(clean_all_targets)
 dest_reinit: $(folder_init_all_targets)
-
-ifneq ($(findstring dest_reinit,$(MAKECMDGOALS)),)
-wipe_dest_proxy: wipe_dest
-endif
-
-wipe_dest:
-	@echo "clearing destination dir"
-	setopt EXTENDED_GLOB; \
-  	files=($(dest_dir)/^index.md(N)); \
-	test -n "$${files}" && rm -rf $${files}; true
-
 
 # There are no prerequisites here. They come from adoc_rule evaluation and are merged here.
 %.d:

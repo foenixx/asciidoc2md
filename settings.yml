@@ -1,15 +1,15 @@
 cross_links:
-  InstallationGuide.adoc: install/
-  UserGuide.adoc: user/
-  AdministratorGuide.adoc: admin/
-  ProgrammersGuide.adoc: dev/
-  BestPractices.adoc: dev/kb/
-  BeginnersGuide.adoc: beg/
-  LinuxInstallationGuide.adoc: linux_inst/
-  WebClientLimitations.adoc: web_limits/
-  WebProgrammersGuide.adoc: web_dev/
-  WorkflowGuide.adoc: workflow/
-  ReleaseNotes.adoc: rn/
+  InstallationGuide.adoc: adm/install/
+  UserGuide.adoc: usr/user/
+  AdministratorGuide.adoc: adm/admin/
+  ProgrammersGuide.adoc: dev/dev/
+  BestPractices.adoc: dev/dev/kb/
+  BeginnersGuide.adoc: dev/beg/
+  LinuxInstallationGuide.adoc: adm/linux/
+  WebClientLimitations.adoc: adm/web_limits/
+  WebProgrammersGuide.adoc: dev/web
+  WorkflowGuide.adoc: dev/workflow/
+  ReleaseNotes.adoc: adm/rn/
 url_rewrites:
   # these rules are applied first and rewrite complete url with regexp and replace
   - '@html#_Установка_и_конфигурирование_сервера_приложений_и_веб_сервисов_системы': 'html#WebServicesConfig'
@@ -46,7 +46,7 @@ headers:
   InstallationGuide.adoc:
     Состав поставки: description.md
     Системные требования для серверов Windows и клиентских приложений: requirements.md
-    Установка TESSA для серверов Windows: windows.md
+    Установка Tessa для серверов Windows: windows.md
     Настройка почтовых уведомлений и мобильного согласования: mail.md
     Публикация приложений: publishing.md
     Инсталлятор Tessa Applications: tessa_apps.md
@@ -65,7 +65,7 @@ headers:
     Установка TESSA: install.md
     Установка на Ubuntu / Debian / Astra Linux: ubuntu.md
     Установка на Linux Mint: mint.md
-    Установка на CentOS / Fedora / РЕД ОС: centos.md
+    Установка на RedHat Enterprise Linux / CentOS / Fedora / Oracle Linux / РЕД ОС: centos.md
     Установка на Calculate Linux: calculate.md
     Установка на SUSE Linux Enterprise / OpenSUSE: suse.md
     Установка на ALT Linux: alt.md
@@ -74,7 +74,81 @@ headers:
     Настройка Unix-сокетов и нескольких рабочих процессов: workers.md
     Часто решаемые задачи: more.md
   UserGuide.adoc:
+    Общие сведения: index.md
+    Запуск TESSA: apps.md
+    Общая информация: ui.md
+    Горячие клавиши: hotkeys.md
+    Работа с карточками документов: docs.md
+    Работа с шаблонами: templates.md
+    Работа с заданиями: tasks.md
+    Мобильное согласование и завершение задач: mobile.md
+    Работа с обсуждениями: forums.md
+    Работа с файлами: files.md
+    Создание файлов по шаблону: file_templates.md
+    Фильтрация данных: search.md
+    Редактирование дерева представлений: workplaces.md
+    Настройка замещений: deputies.md
+    Описание типового решения: standard_solution.md
+    Регистрация документов типового решения: registration.md
+    Права доступа к карточке типового процесса: access.md
+    Согласование документов: approval.md
+    Типовой процесс исполнения задач: resolutions.md
+    Ознакомление с документом: acquaintance.md
+    Потоковый ввод документов: doc_load.md
+    Поиск документов в типовом решении: doc_search.md
+    Справочник контрагентов: partners.md
+    Отчеты: reports.md
+    Диаграммы: charts.md    
   AdministratorGuide.adoc:
+    Введение: index.md
+    Работа с Tessa Applications и приложениями: apps.md
+    Механизмы разграничения доступа: access.md
+    Заведение нового пользователя/администратора в системе: org_struct.md
+    Синхронизация с Active Directory / LDAP: ad_sync.md
+    Роли: roles.md
+    Настройки типового решения: standard_solution.md
+    Шаблоны файлов и плейсхолдеры: placeholders.md
+    Система прав доступа к карточкам, включенным в типовое решение: access_rules.md
+    Права на просмотр отчетов: reports_access.md
+    Уведомления: notifications.md
+    Типы условий: conditions.md
+    Виртуальные файлы: virtual_files.md
+    Маршруты документов: routes.md
+    Потоковый ввод документов: doc_load.md
+    Календарь: calendar.md
+    Временные зоны: time_zones.md
+    Настройки электронной подписи: signatures.md
+    Лицензии: licenses.md
+    Управление сессиями: sessions.md
+    Настройки сервера: server.md
+    Кэш файлов: file_cache.md
+    Работа с удаленными карточками: deleted_cards.md
+    История действий: action_history.md
+    Настройка плагинов Chronos: chronos.md
+    Создание/Редактирование тем оформления и настройка фоновых изображений: themes.md
+    Описание пользовательского интерфейса и функций рабочего места Tessa Admin: ui.md
+    Раздел "Схема": scheme.md
+    Раздел "Представления": views.md
+    Раздел "Карточки": cards.md
+    Раздел "Рабочие места": workplaces.md
+    Раздел "Локализация": localization.md
+    Секция DocumentCommonInfo: dci.md
+    Обновление до новой сборки платформы: upgrade.md
+    Экспорт конфигурации веб-сервиса: export.md
+    Консольная административная утилита tadmin: tadmin.md
+    Миграция базы данных и файлов: migration.md
+    Обслуживание системы: maintenance.md
+    Механизм работы аутентификации пользователей в платформе Tessa: auth.md
+  BeginnersGuide.adoc:
+    Общие сведения: index.md
+    Схема данных: scheme.md
+    Строки в таблице типа Перечисление: enumerations.md
+    Типы карточек: cards.md
+    Представления: views.md
+    Рабочие места: workplaces.md
+    Представления с карточками: card_views.md
+    Завершение настройки карточки: completion.md
+    Типовое решение: standard_solution.md    
   ProgrammersGuide.adoc:
     Расширения: extensions.md
     Работа с карточками объектов: objects.md
@@ -88,25 +162,27 @@ headers:
     API Слияния объектов: smart_merge.md
     # do not create a .md file from this chapter
     Методики разработки в Tessa: <skip chapter>
-  ReleaseNotes.adoc:
-    Версия 3.6: 3.6.md
-    Патч 3.5.0.8 (13.04.2021): 3.5.0.8.md
-    Патч 3.5.0.7 (13.03.2021): 3.5.0.7.md
-    Патч 3.5.0.6 (13.01.2021): 3.5.0.6.md
-    Патч 3.5.0.5 (26.12.2020): 3.5.0.5.md
-    Патч 3.5.0.4 (29.10.2020): 3.5.0.4.md
-    Патч 3.5.0.3 (27.09.2020): 3.5.0.3.md
-    Патч 3.5.0.2 (24.08.2020): 3.5.0.2.md
-    Патч 3.5.0.1 (08.06.2020): 3.5.0.1.md
-    Версия 3.5 (04.06.2020): 3.5.md
-    Версия 3.4 (13.11.2019): 3.4.md
-    Версия 3.3.1 (16.07.2019): 3.3.1.md
-    Версия 3.3 (17.05.2019): 3.3.md
-    Версия 3.2 (05.02.2019): 3.2.md
-    Версия 3.1.1 (11.12.2018): 3.1.1.md
-    Версия 3.1 (01.12.2018): 3.1.md
-    Версия 3.0.1 (17.11.2018): 3.0.1.md
-    Версия 3.0 (12.11.2018): 3.0.md
+  WebProgrammersGuide.adoc:
+     Общие сведения: index.md
+     React.js: react.md
+     MobX.js: mobx.md
+     Процесс разработки: dev.md
+     Расширения: extensions.md
+     Примеры расширений: examples.md
+     Дополнительно: misc.md
+  WorkflowGuide.adoc:
+    Общие сведения: index.md
+    Введение в конструктор бизнес-процессов: basics.md
+    Введение в настройку шаблона бизнес-процесса: template.md
+    Введение в визуальный редактор процессов: ui.md
+    Введение в отладку экземпляров бизнес-процесса: debug.md
+    Описание действий: actions.md
+    Описание действий из группы "Маршруты": routes.md
+    API скриптов: api.md
+    Примеры: examples.md
+    Импорт процесса BPMN: bpmn.md
+  WebClientLimitations.adoc:
+    Особенности и ограничения Web-клиента СЭД TESSA: index.md
 idmap_fallbacks:
   # if id not found in the ProgrammersGuide.adoc idmap, then try to find it in the BestPractices.adoc idmap.
   ProgrammersGuide.adoc: BestPractices.adoc

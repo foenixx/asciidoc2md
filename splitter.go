@@ -328,8 +328,7 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 		fs.fileName = ""
 		return
 	}
-	docPath := path.Join(fs.conf.CrossLinks[fs.doc.Name], fs.fileName)
-	nav := []string{fmt.Sprintf("- %s: %s", fs.firstHeader.Text, docPath)}
+	nav := []string{fmt.Sprintf("- %s: %s", fs.firstHeader.Text, fs.fileName)}
 	skipCurChapter := false
 	fs.doc.Walk(func(b ast.Block, root *ast.Document) bool {
 
@@ -349,8 +348,7 @@ func (fs *FileSplitter)	fillIdMap(printYaml bool) {
 				} else {
 					skipCurChapter = false
 					fs.fileName = fs.getNextFileName(hd)
-					docPath = path.Join(fs.conf.CrossLinks[fs.doc.Name], fs.fileName)
-					nav = append(nav, fmt.Sprintf("- %s: %s", hd.Text, docPath))
+					nav = append(nav, fmt.Sprintf("- %s: %s", hd.Text, fs.fileName))
 				}
 				fs.fileNames = append(fs.fileNames, fs.fileName)
 			}
